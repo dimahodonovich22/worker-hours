@@ -1,17 +1,20 @@
 import * as XLSX from 'xlsx';
 import type { Entry, Worker } from './types';
-import { ddmm, entryHours, formatMonthLabel } from './calc';
+import { ddmm, entryHours, entryPay, formatMonthLabel } from './calc';
 
 export function exportExcel(worker: Worker, entries: Entry[], monthKey: string): void {
   const sorted = entries.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
 
   let totalHours = 0;
   let totalKm = 0;
+  let totalPay = 0;
 
   const rows = sorted.map((e) => {
     const hours = entryHours(e);
+    const sum = entryPay(e, worker);
     totalHours += hours;
     totalKm += e.km || 0;
+    totalPay += sum;
     return {
       Дата: ddmm(e.date),
       Локация: e.location,
@@ -20,11 +23,11 @@ export function exportExcel(worker: Worker, entries: Entry[], monthKey: string):
       Обед: e.lunch ? '30 мин' : 'без обеда',
       'Часы': hours,
       'Км': e.km,
-      'Сумма €': Math.round((hours * worker.hourly + (e.km || 0) * worker.perKm) * 100) / 100,
+      'Сумма €': sum,
     };
   });
 
-  const totalPay = Math.round((totalHours * worker.hourly + totalKm * worker.perKm) * 100) / 100;
+  totalPay = Math.round(totalPay * 100) / 100;
 
   rows.push({
     Дата: '',

@@ -402,6 +402,17 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
+.preview > div + div { margin-top: 8px; }
+.preview-pay strong { color: #1d8a3a; }
+
+.form-hint {
+  background: var(--accent-soft);
+  color: var(--text-2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+}
 
 /* ---------- Action sheet ---------- */
 .sheet-backdrop {

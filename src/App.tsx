@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AppState, Entry, Worker } from './types';
 import { loadState, saveState, uid } from './storage';
+import { ymd } from './calc';
 import { WorkersList } from './screens/WorkersList';
 import { WorkerDetail } from './screens/WorkerDetail';
 import { EntryForm } from './screens/EntryForm';
@@ -92,16 +93,38 @@ export function App() {
   if (route.name === 'entry') {
     const worker = state.workers.find((w) => w.id === route.workerId)!;
     const existing = route.entryId ? state.entries.find((e) => e.id === route.entryId) : undefined;
+    const lastForWorker = state.entries
+      .filter((e) => e.workerId === worker.id)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    const defaults = {
+      hourly: lastForWorker?.hourly ?? worker.hourly ?? 15,
+      perKm: lastForWorker?.perKm ?? worker.perKm ?? 0,
+      km: lastForWorker?.km ?? 15,
+    };
     return (
       <EntryForm
         worker={worker}
         existing={existing}
         knownLocations={Array.from(new Set(state.entries.map((e) => e.location).filter(Boolean)))}
+        defaults={defaults}
         onCancel={() => setRoute({ name: 'worker', workerId: worker.id })}
         onSave={(data) => {
           upsertEntry({ id: existing?.id ?? uid(), workerId: worker.id, ...data });
           setRoute({ name: 'worker', workerId: worker.id });
         }}
+        onDuplicate={
+          existing
+            ? () => {
+                const copyId = uid();
+                upsertEntry({
+                  ...existing,
+                  id: copyId,
+                  date: ymd(new Date()),
+                });
+                setRoute({ name: 'entry', workerId: worker.id, entryId: copyId });
+              }
+            : undefined
+        }
         onDelete={
           existing
             ? () => {

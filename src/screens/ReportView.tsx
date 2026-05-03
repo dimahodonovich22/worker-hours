@@ -4,6 +4,7 @@ import {
   ddmm,
   entryHours,
   entryMonthKey,
+  entryPay,
   formatMonthLabel,
   formatNum,
   monthTotal,
@@ -74,7 +75,7 @@ export function ReportView({ worker, entries, monthKey, onBack }: Props) {
           <tbody>
             {visible.map((e) => {
               const h = entryHours(e);
-              const sum = Math.round((h * worker.hourly + (e.km || 0) * worker.perKm) * 100) / 100;
+              const sum = entryPay(e, worker);
               return (
                 <tr key={e.id}>
                   <td className="nowrap">{ddmm(e.date)}</td>
@@ -111,11 +112,6 @@ export function ReportView({ worker, entries, monthKey, onBack }: Props) {
             <div className="summary-label">К выплате</div>
             <div className="summary-value">€{formatNum(total.pay)}</div>
           </div>
-        </div>
-
-        <div className="report-rates">
-          Ставка: €{formatNum(worker.hourly)}/ч
-          {worker.perKm > 0 && <> · €{formatNum(worker.perKm)}/км</>}
         </div>
 
         <div className="report-footer">

@@ -4,6 +4,7 @@ import {
   ddmm,
   entryHours,
   entryMonthKey,
+  entryPay,
   formatMonthLabel,
   formatNum,
   monthTotal,
@@ -100,7 +101,7 @@ export function WorkerDetail({
         <ul className="entries">
           {visible.map((e) => {
             const h = entryHours(e);
-            const pay = Math.round((h * worker.hourly + (e.km || 0) * worker.perKm) * 100) / 100;
+            const pay = entryPay(e, worker);
             return (
               <li key={e.id} className="entry-row" onClick={() => onEditEntry(e.id)}>
                 <div className="entry-date">{ddmm(e.date)}</div>

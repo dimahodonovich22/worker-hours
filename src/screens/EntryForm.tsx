@@ -6,20 +6,39 @@ type Props = {
   worker: Worker;
   existing?: Entry;
   knownLocations: string[];
+  defaults: { hourly: number; perKm: number; km: number };
   onCancel: () => void;
   onSave: (data: Omit<Entry, 'id' | 'workerId'>) => void;
+  onDuplicate?: () => void;
   onDelete?: () => void;
 };
 
-export function EntryForm({ worker, existing, knownLocations, onCancel, onSave, onDelete }: Props) {
+export function EntryForm({
+  worker,
+  existing,
+  knownLocations,
+  defaults,
+  onCancel,
+  onSave,
+  onDuplicate,
+  onDelete,
+}: Props) {
   const [date, setDate] = useState(existing?.date ?? ymd(new Date()));
   const [location, setLocation] = useState(existing?.location ?? '');
   const [start, setStart] = useState(existing?.start ?? '08:00');
   const [end, setEnd] = useState(existing?.end ?? '16:30');
   const [lunch, setLunch] = useState(existing?.lunch ?? true);
-  const [km, setKm] = useState<string>(existing ? String(existing.km) : '15');
+  const [km, setKm] = useState<string>(
+    existing ? String(existing.km) : String(defaults.km),
+  );
+  const [hourly, setHourly] = useState<string>(
+    String(existing?.hourly ?? defaults.hourly),
+  );
+  const [perKm, setPerKm] = useState<string>(
+    String(existing?.perKm ?? defaults.perKm),
+  );
 
-  const preview = useMemo(
+  const hours = useMemo(
     () =>
       entryHours({
         id: '',
@@ -34,11 +53,22 @@ export function EntryForm({ worker, existing, knownLocations, onCancel, onSave, 
     [date, location, start, end, lunch],
   );
 
+  const num = (s: string) => parseFloat(s.replace(',', '.')) || 0;
+  const pay = Math.round((hours * num(hourly) + num(km) * num(perKm)) * 100) / 100;
+
   const canSave = location.trim() !== '' && start !== '' && end !== '';
 
   function handleSave() {
-    const kmNum = parseFloat(km.replace(',', '.')) || 0;
-    onSave({ date, location: location.trim(), start, end, lunch, km: kmNum });
+    onSave({
+      date,
+      location: location.trim(),
+      start,
+      end,
+      lunch,
+      km: num(km),
+      hourly: num(hourly),
+      perKm: num(perKm),
+    });
   }
 
   return (
@@ -98,9 +128,37 @@ export function EntryForm({ worker, existing, knownLocations, onCancel, onSave, 
           />
         </label>
 
-        <div className="preview">
-          Чистое время: <strong>{formatNum(preview)} ч</strong>
+        <div className="field-row">
+          <label className="field">
+            <span>Ставка €/ч</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={hourly}
+              onChange={(e) => setHourly(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Ставка €/км</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={perKm}
+              onChange={(e) => setPerKm(e.target.value)}
+            />
+          </label>
         </div>
+
+        <div className="preview">
+          <div>Чистое время: <strong>{formatNum(hours)} ч</strong></div>
+          <div className="preview-pay">К начислению: <strong>€{formatNum(pay)}</strong></div>
+        </div>
+
+        {onDuplicate && (
+          <button className="ghost" onClick={onDuplicate}>
+            Дублировать запись
+          </button>
+        )}
 
         {onDelete && (
           <button

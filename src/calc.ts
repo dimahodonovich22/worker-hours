@@ -37,21 +37,37 @@ export type MonthTotal = {
   count: number;
 };
 
+export function entryRate(e: Entry, worker: Worker): { hourly: number; perKm: number } {
+  return {
+    hourly: e.hourly ?? worker.hourly ?? 0,
+    perKm: e.perKm ?? worker.perKm ?? 0,
+  };
+}
+
+export function entryPay(e: Entry, worker: Worker): number {
+  const { hourly, perKm } = entryRate(e, worker);
+  return Math.round((entryHours(e) * hourly + (e.km || 0) * perKm) * 100) / 100;
+}
+
 export function monthTotal(entries: Entry[], worker: Worker, monthKey: string): MonthTotal {
   let hours = 0;
   let km = 0;
+  let pay = 0;
   let count = 0;
   for (const e of entries) {
     if (e.workerId !== worker.id) continue;
     if (entryMonthKey(e.date) !== monthKey) continue;
     hours += entryHours(e);
     km += e.km || 0;
+    pay += entryPay(e, worker);
     count += 1;
   }
-  hours = Math.round(hours * 100) / 100;
-  km = Math.round(km * 100) / 100;
-  const pay = Math.round((hours * worker.hourly + km * worker.perKm) * 100) / 100;
-  return { hours, km, pay, count };
+  return {
+    hours: Math.round(hours * 100) / 100,
+    km: Math.round(km * 100) / 100,
+    pay: Math.round(pay * 100) / 100,
+    count,
+  };
 }
 
 export function formatNum(n: number): string {

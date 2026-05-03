@@ -10,16 +10,15 @@ type Props = {
 
 export function WorkerForm({ existing, onCancel, onSave, onDelete }: Props) {
   const [name, setName] = useState(existing?.name ?? '');
-  const [hourly, setHourly] = useState<string>(existing ? String(existing.hourly) : '15');
-  const [perKm, setPerKm] = useState<string>(existing ? String(existing.perKm) : '0');
 
   const canSave = name.trim() !== '';
 
   function handleSave() {
     onSave({
       name: name.trim(),
-      hourly: parseFloat(hourly.replace(',', '.')) || 0,
-      perKm: parseFloat(perKm.replace(',', '.')) || 0,
+      // Сохраняем старые ставки, если работник уже существовал — для совместимости со старыми записями.
+      hourly: existing?.hourly,
+      perKm: existing?.perKm,
     });
   }
 
@@ -43,25 +42,9 @@ export function WorkerForm({ existing, onCancel, onSave, onDelete }: Props) {
           />
         </label>
 
-        <label className="field">
-          <span>Ставка €/час</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={hourly}
-            onChange={(e) => setHourly(e.target.value)}
-          />
-        </label>
-
-        <label className="field">
-          <span>Ставка €/км (если нужна)</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={perKm}
-            onChange={(e) => setPerKm(e.target.value)}
-          />
-        </label>
+        <div className="form-hint">
+          Ставка €/ч и €/км задаются при добавлении каждой записи — они могут отличаться от объекта к объекту.
+        </div>
 
         {onDelete && (
           <button
