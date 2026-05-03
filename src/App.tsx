@@ -5,12 +5,14 @@ import { WorkersList } from './screens/WorkersList';
 import { WorkerDetail } from './screens/WorkerDetail';
 import { EntryForm } from './screens/EntryForm';
 import { WorkerForm } from './screens/WorkerForm';
+import { ReportView } from './screens/ReportView';
 
 type Route =
   | { name: 'workers' }
   | { name: 'worker'; workerId: string }
   | { name: 'entry'; workerId: string; entryId?: string }
-  | { name: 'workerForm'; workerId?: string };
+  | { name: 'workerForm'; workerId?: string }
+  | { name: 'report'; workerId: string; monthKey: string };
 
 export function App() {
   const [state, setState] = useState<AppState>(() => loadState());
@@ -82,6 +84,7 @@ export function App() {
         onEditWorker={() => setRoute({ name: 'workerForm', workerId: worker.id })}
         onDeleteEntry={deleteEntry}
         allEntriesForWorker={state.entries.filter((e) => e.workerId === worker.id)}
+        onOpenReport={(monthKey) => setRoute({ name: 'report', workerId: worker.id, monthKey })}
       />
     );
   }
@@ -107,6 +110,22 @@ export function App() {
               }
             : undefined
         }
+      />
+    );
+  }
+
+  if (route.name === 'report') {
+    const worker = state.workers.find((w) => w.id === route.workerId);
+    if (!worker) {
+      setRoute({ name: 'workers' });
+      return null;
+    }
+    return (
+      <ReportView
+        worker={worker}
+        entries={state.entries}
+        monthKey={route.monthKey}
+        onBack={() => setRoute({ name: 'worker', workerId: worker.id })}
       />
     );
   }

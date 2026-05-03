@@ -9,6 +9,7 @@ import {
   monthTotal,
   currentMonthKey,
 } from '../calc';
+import { exportExcel } from '../export';
 
 type Props = {
   worker: Worker;
@@ -19,6 +20,7 @@ type Props = {
   onEditEntry: (id: string) => void;
   onEditWorker: () => void;
   onDeleteEntry: (id: string) => void;
+  onOpenReport: (monthKey: string) => void;
 };
 
 export function WorkerDetail({
@@ -28,7 +30,9 @@ export function WorkerDetail({
   onAddEntry,
   onEditEntry,
   onEditWorker,
+  onOpenReport,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const months = useMemo(() => {
     const set = new Set(entries.map((e) => entryMonthKey(e.date)));
     set.add(currentMonthKey());
@@ -112,9 +116,57 @@ export function WorkerDetail({
       )}
 
       <footer className="footer-actions">
-        <button className="ghost" onClick={exportText}>Экспорт месяца</button>
+        <button className="ghost" onClick={() => setMenuOpen(true)}>Экспорт</button>
         <button className="primary" onClick={onAddEntry}>+ Запись</button>
       </footer>
+
+      {menuOpen && (
+        <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-title">Экспорт за {formatMonthLabel(month)}</div>
+            <button
+              className="sheet-btn"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenReport(month);
+              }}
+            >
+              <span className="sheet-btn-icon">📄</span>
+              <span>
+                <strong>PDF (для начальника)</strong>
+                <small>красиво оформленный отчёт</small>
+              </span>
+            </button>
+            <button
+              className="sheet-btn"
+              onClick={() => {
+                setMenuOpen(false);
+                exportExcel(worker, visible, month);
+              }}
+            >
+              <span className="sheet-btn-icon">📊</span>
+              <span>
+                <strong>Excel (.xlsx)</strong>
+                <small>таблица для редактирования</small>
+              </span>
+            </button>
+            <button
+              className="sheet-btn"
+              onClick={() => {
+                setMenuOpen(false);
+                exportText();
+              }}
+            >
+              <span className="sheet-btn-icon">📋</span>
+              <span>
+                <strong>Текст в буфер</strong>
+                <small>как в ваших заметках</small>
+              </span>
+            </button>
+            <button className="sheet-cancel" onClick={() => setMenuOpen(false)}>Отмена</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
