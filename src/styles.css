@@ -331,7 +331,26 @@ button.danger:active { background: rgba(255,59,48,0.08); }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- Forms ---------- */
-.form { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 12px;
+  animation: refreshIn 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.form-sub { animation: refreshIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.topbar h1 { animation: titlePulse 0.5s ease; }
+
+@keyframes refreshIn {
+  0% { opacity: 0; transform: translateY(-12px); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes titlePulse {
+  0% { transform: scale(0.9); opacity: 0.4; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 .form-sub {
   color: var(--muted);
   padding: 4px 4px 12px;
