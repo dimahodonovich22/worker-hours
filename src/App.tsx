@@ -103,6 +103,7 @@ export function App() {
     };
     return (
       <EntryForm
+        key={existing?.id ?? 'new'}
         worker={worker}
         existing={existing}
         knownLocations={Array.from(new Set(state.entries.map((e) => e.location).filter(Boolean)))}
