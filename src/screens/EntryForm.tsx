@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Entry, Worker } from '../types';
 import { entryHours, formatNum, ymd } from '../calc';
 
@@ -37,6 +37,10 @@ export function EntryForm({
   const [perKm, setPerKm] = useState<string>(
     String(existing?.perKm ?? defaults.perKm),
   );
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const hours = useMemo(
     () =>
