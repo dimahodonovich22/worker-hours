@@ -37,6 +37,7 @@ export function EntryForm({
   const [perKm, setPerKm] = useState<string>(
     String(existing?.perKm ?? defaults.perKm),
   );
+  const [multiplier, setMultiplier] = useState<number>(existing?.multiplier ?? 1);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -53,8 +54,9 @@ export function EntryForm({
         end,
         lunch,
         km: 0,
+        multiplier,
       }),
-    [date, location, start, end, lunch],
+    [date, location, start, end, lunch, multiplier],
   );
 
   const num = (s: string) => parseFloat(s.replace(',', '.')) || 0;
@@ -72,6 +74,7 @@ export function EntryForm({
       km: num(km),
       hourly: num(hourly),
       perKm: num(perKm),
+      multiplier,
     });
   }
 
@@ -120,6 +123,28 @@ export function EntryForm({
           <input type="checkbox" checked={lunch} onChange={(e) => setLunch(e.target.checked)} />
           <span>Обед 30 мин</span>
         </label>
+
+        <div className="field">
+          <span>Коэффициент часов</span>
+          <div className="multi-row">
+            <label className={`multi-chip ${multiplier === 1.5 ? 'on' : ''}`}>
+              <input
+                type="checkbox"
+                checked={multiplier === 1.5}
+                onChange={(e) => setMultiplier(e.target.checked ? 1.5 : 1)}
+              />
+              <span>× 1.5</span>
+            </label>
+            <label className={`multi-chip ${multiplier === 2 ? 'on' : ''}`}>
+              <input
+                type="checkbox"
+                checked={multiplier === 2}
+                onChange={(e) => setMultiplier(e.target.checked ? 2 : 1)}
+              />
+              <span>× 2</span>
+            </label>
+          </div>
+        </div>
 
         <label className="field">
           <span>Километры</span>

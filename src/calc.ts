@@ -11,7 +11,8 @@ export function entryHours(e: Entry): number {
   if (mins < 0) mins += 24 * 60; // через полночь
   if (e.lunch) mins -= 30;
   if (mins < 0) mins = 0;
-  return Math.round((mins / 60) * 100) / 100;
+  const mult = e.multiplier && e.multiplier > 0 ? e.multiplier : 1;
+  return Math.round((mins / 60) * mult * 100) / 100;
 }
 
 export function ymd(d: Date): string {

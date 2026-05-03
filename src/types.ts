@@ -17,6 +17,7 @@ export type Entry = {
   km: number;
   hourly?: number;  // €/ч за этот день
   perKm?: number;   // €/км за этот день
+  multiplier?: number; // 1 | 1.5 | 2 — коэффициент для часов
 };
 
 export type AppState = {

@@ -259,6 +259,18 @@ input, select {
   font-weight: 400;
   margin-left: 4px;
 }
+.entry-mult {
+  display: inline-block;
+  margin-left: 8px;
+  background: #ede1ff;
+  color: #6b1fb8;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
 .entry-no-lunch {
   display: inline-block;
   margin-left: 8px;
@@ -436,6 +448,42 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   border: solid white;
   border-width: 0 3px 3px 0;
   transform: rotate(45deg);
+}
+
+.multi-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.multi-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.multi-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.multi-chip.on {
+  background: #ede1ff;
+  border-color: #b787f0;
+  color: #6b1fb8;
+}
+.multi-chip.on::before {
+  content: '✓';
+  color: #6b1fb8;
+  font-weight: 800;
 }
 
 .preview {
