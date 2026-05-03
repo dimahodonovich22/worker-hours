@@ -397,10 +397,32 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   font-weight: 500;
 }
 .field-check input {
-  width: 22px;
-  height: 22px;
-  accent-color: var(--accent);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--border-strong);
+  border-radius: 8px;
+  background: white;
   cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.field-check input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.field-check input:checked::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 2px;
+  width: 7px;
+  height: 13px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
 }
 
 .preview {
