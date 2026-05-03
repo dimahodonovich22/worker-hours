@@ -98,20 +98,25 @@ export function WorkerDetail({
         <div className="empty"><p>Записей нет.</p></div>
       ) : (
         <ul className="entries">
-          {visible.map((e) => (
-            <li key={e.id} className="entry-row" onClick={() => onEditEntry(e.id)}>
-              <div className="entry-date">{ddmm(e.date)}</div>
-              <div className="entry-main">
-                <div className="entry-loc">
-                  {e.location}
-                  {!e.lunch && <span className="muted"> без обеда</span>}
+          {visible.map((e) => {
+            const h = entryHours(e);
+            const pay = Math.round((h * worker.hourly + (e.km || 0) * worker.perKm) * 100) / 100;
+            return (
+              <li key={e.id} className="entry-row" onClick={() => onEditEntry(e.id)}>
+                <div className="entry-date">{ddmm(e.date)}</div>
+                <div className="entry-main">
+                  <div className="entry-loc">
+                    {e.location}
+                    {!e.lunch && <span className="muted"> без обеда</span>}
+                  </div>
+                  <div className="entry-time">
+                    {e.start}–{e.end} / {formatNum(h)} ч / {formatNum(e.km)} км
+                  </div>
                 </div>
-                <div className="entry-time">
-                  {e.start}–{e.end} / {formatNum(entryHours(e))} ч / {formatNum(e.km)} км
-                </div>
-              </div>
-            </li>
-          ))}
+                <div className="entry-pay">€{formatNum(pay)}</div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

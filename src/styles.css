@@ -265,6 +265,17 @@ input, select {
   margin-top: 3px;
   font-variant-numeric: tabular-nums;
 }
+.entry-pay {
+  flex-shrink: 0;
+  background: var(--success-soft);
+  color: #1d8a3a;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 
 /* ---------- Footer / FAB ---------- */
 .footer-actions {
