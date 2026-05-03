@@ -108,7 +108,7 @@ export function WorkerDetail({
                 <div className="entry-main">
                   <div className="entry-loc">
                     {e.location}
-                    {!e.lunch && <span className="muted"> без обеда</span>}
+                    {!e.lunch && <span className="entry-no-lunch">без обеда</span>}
                   </div>
                   <div className="entry-time">
                     {e.start}–{e.end} / {formatNum(h)} ч / {formatNum(e.km)} км
