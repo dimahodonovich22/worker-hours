@@ -15,11 +15,15 @@ export function exportExcel(worker: Worker, entries: Entry[], monthKey: string):
     totalHours += hours;
     totalKm += e.km || 0;
     totalPay += sum;
+    const locs = [e.location, ...(e.extraSegments?.map((s) => s.location) ?? [])].join(' + ');
+    const times = [
+      `${e.start}–${e.end}`,
+      ...(e.extraSegments?.map((s) => `${s.start}–${s.end}`) ?? []),
+    ].join(' · ');
     return {
       Дата: ddmm(e.date),
-      Локация: e.location,
-      Начало: e.start,
-      Конец: e.end,
+      Локация: locs,
+      Время: times,
       Обед: e.lunch ? '30 мин' : 'без обеда',
       'Часы': hours,
       'Км': e.km,
@@ -32,8 +36,7 @@ export function exportExcel(worker: Worker, entries: Entry[], monthKey: string):
   rows.push({
     Дата: '',
     Локация: 'ИТОГО',
-    Начало: '',
-    Конец: '',
+    Время: '',
     Обед: '',
     Часы: Math.round(totalHours * 100) / 100,
     Км: Math.round(totalKm * 100) / 100,
@@ -43,9 +46,8 @@ export function exportExcel(worker: Worker, entries: Entry[], monthKey: string):
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [
     { wch: 8 },  // дата
-    { wch: 22 }, // локация
-    { wch: 8 },  // начало
-    { wch: 8 },  // конец
+    { wch: 28 }, // локация
+    { wch: 18 }, // время
     { wch: 12 }, // обед
     { wch: 8 },  // часы
     { wch: 8 },  // км
@@ -54,7 +56,7 @@ export function exportExcel(worker: Worker, entries: Entry[], monthKey: string):
 
   // Жирная нижняя строка с итогами
   const lastRow = rows.length + 1; // +1 для заголовка
-  ['A','B','C','D','E','F','G','H'].forEach((col) => {
+  ['A','B','C','D','E','F','G'].forEach((col) => {
     const cell = ws[`${col}${lastRow}`];
     if (cell) {
       cell.s = { font: { bold: true } };

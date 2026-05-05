@@ -450,6 +450,41 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   transform: rotate(45deg);
 }
 
+.segment {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.segment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.segment-remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.add-segment {
+  width: 100%;
+}
+
 .multi-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

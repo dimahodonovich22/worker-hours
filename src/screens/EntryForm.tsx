@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Entry, Worker } from '../types';
+import type { Entry, Segment, Worker } from '../types';
 import { entryHours, formatNum, ymd } from '../calc';
 
 type Props = {
@@ -38,6 +38,24 @@ export function EntryForm({
     String(existing?.perKm ?? defaults.perKm),
   );
   const [multiplier, setMultiplier] = useState<number>(existing?.multiplier ?? 1);
+  const [extraSegments, setExtraSegments] = useState<Segment[]>(
+    existing?.extraSegments ?? [],
+  );
+
+  function updateSegment(i: number, patch: Partial<Segment>) {
+    setExtraSegments((prev) =>
+      prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)),
+    );
+  }
+  function addSegment() {
+    setExtraSegments((prev) => [
+      ...prev,
+      { location: '', start: end, end: end },
+    ]);
+  }
+  function removeSegment(i: number) {
+    setExtraSegments((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -55,12 +73,17 @@ export function EntryForm({
         lunch,
         km: 0,
         multiplier,
+        extraSegments,
       }),
-    [date, location, start, end, lunch, multiplier],
+    [date, location, start, end, lunch, multiplier, extraSegments],
   );
 
   const num = (s: string) => parseFloat(s.replace(',', '.')) || 0;
   const pay = Math.round((hours * num(hourly) + num(km) * num(perKm)) * 100) / 100;
+
+  const cleanedExtras: Segment[] = extraSegments
+    .map((s) => ({ location: s.location.trim(), start: s.start, end: s.end }))
+    .filter((s) => s.location !== '' && s.start !== '' && s.end !== '');
 
   const canSave = location.trim() !== '' && start !== '' && end !== '';
 
@@ -75,6 +98,7 @@ export function EntryForm({
       hourly: num(hourly),
       perKm: num(perKm),
       multiplier,
+      extraSegments: cleanedExtras.length ? cleanedExtras : undefined,
     });
   }
 
@@ -118,6 +142,49 @@ export function EntryForm({
             <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
           </label>
         </div>
+
+        {extraSegments.map((seg, i) => (
+          <div key={i} className="segment">
+            <div className="segment-header">
+              <span>Объект {i + 2}</span>
+              <button type="button" className="segment-remove" onClick={() => removeSegment(i)}>
+                Удалить
+              </button>
+            </div>
+            <label className="field">
+              <span>Локация</span>
+              <input
+                type="text"
+                list="locations"
+                value={seg.location}
+                onChange={(e) => updateSegment(i, { location: e.target.value })}
+                placeholder="ещё один объект..."
+              />
+            </label>
+            <div className="field-row">
+              <label className="field">
+                <span>Начало</span>
+                <input
+                  type="time"
+                  value={seg.start}
+                  onChange={(e) => updateSegment(i, { start: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Конец</span>
+                <input
+                  type="time"
+                  value={seg.end}
+                  onChange={(e) => updateSegment(i, { end: e.target.value })}
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+
+        <button type="button" className="ghost add-segment" onClick={addSegment}>
+          + Добавить локацию
+        </button>
 
         <label className="field-check">
           <input type="checkbox" checked={lunch} onChange={(e) => setLunch(e.target.checked)} />

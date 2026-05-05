@@ -76,11 +76,16 @@ export function ReportView({ worker, entries, monthKey, onBack }: Props) {
             {visible.map((e) => {
               const h = entryHours(e);
               const sum = entryPay(e, worker);
+              const locs = [e.location, ...(e.extraSegments?.map((s) => s.location) ?? [])].join(' + ');
+              const times = [
+                `${e.start}–${e.end}`,
+                ...(e.extraSegments?.map((s) => `${s.start}–${s.end}`) ?? []),
+              ].join(' · ');
               return (
                 <tr key={e.id}>
                   <td className="nowrap">{ddmm(e.date)}</td>
-                  <td>{e.location}</td>
-                  <td className="nowrap">{e.start}–{e.end}</td>
+                  <td>{locs}</td>
+                  <td className="nowrap">{times}</td>
                   <td>{e.lunch ? '30 мин' : '—'}</td>
                   <td className="num">{formatNum(h)}</td>
                   <td className="num">{formatNum(e.km)}</td>

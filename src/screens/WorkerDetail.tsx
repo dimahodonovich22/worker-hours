@@ -58,7 +58,12 @@ export function WorkerDetail({
       .sort((a, b) => (a.date < b.date ? -1 : 1))
       .map((e) => {
         const lunch = e.lunch ? '' : ' без обеда';
-        return `${ddmm(e.date)} ${e.location}${lunch}   ${e.start}-${e.end}/${formatNum(entryHours(e))}/${formatNum(e.km)}км`;
+        const locs = [e.location, ...(e.extraSegments?.map((s) => s.location) ?? [])].join(' + ');
+        const times = [
+          `${e.start}-${e.end}`,
+          ...(e.extraSegments?.map((s) => `${s.start}-${s.end}`) ?? []),
+        ].join(' · ');
+        return `${ddmm(e.date)} ${locs}${lunch}   ${times}/${formatNum(entryHours(e))}/${formatNum(e.km)}км`;
       });
     lines.push('');
     lines.push(`Итого: ${formatNum(total.hours)} ч / ${formatNum(total.km)} км / €${formatNum(total.pay)}`);
@@ -108,13 +113,25 @@ export function WorkerDetail({
                 <div className="entry-main">
                   <div className="entry-loc">
                     {e.location}
+                    {e.extraSegments && e.extraSegments.length > 0 && (
+                      <>
+                        {e.extraSegments.map((s, i) => (
+                          <span key={i}>, {s.location}</span>
+                        ))}
+                      </>
+                    )}
                     {!e.lunch && <span className="entry-no-lunch">без обеда</span>}
                     {e.multiplier && e.multiplier !== 1 && (
                       <span className="entry-mult">× {e.multiplier}</span>
                     )}
                   </div>
                   <div className="entry-time">
-                    {e.start}–{e.end} / {formatNum(h)} ч / {formatNum(e.km)} км
+                    {e.start}–{e.end}
+                    {e.extraSegments?.map((s, i) => (
+                      <span key={i}> · {s.start}–{s.end}</span>
+                    ))}
+                    {' / '}
+                    {formatNum(h)} ч / {formatNum(e.km)} км
                   </div>
                 </div>
                 <div className="entry-pay">€{formatNum(pay)}</div>

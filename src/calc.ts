@@ -5,10 +5,18 @@ function toMinutes(hhmm: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-export function entryHours(e: Entry): number {
-  if (!e.start || !e.end) return 0;
-  let mins = toMinutes(e.end) - toMinutes(e.start);
+function segmentMinutes(start: string, end: string): number {
+  if (!start || !end) return 0;
+  let mins = toMinutes(end) - toMinutes(start);
   if (mins < 0) mins += 24 * 60; // через полночь
+  return Math.max(0, mins);
+}
+
+export function entryHours(e: Entry): number {
+  let mins = segmentMinutes(e.start, e.end);
+  for (const s of e.extraSegments ?? []) {
+    mins += segmentMinutes(s.start, s.end);
+  }
   if (e.lunch) mins -= 30;
   if (mins < 0) mins = 0;
   const mult = e.multiplier && e.multiplier > 0 ? e.multiplier : 1;

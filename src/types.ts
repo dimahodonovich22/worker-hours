@@ -18,6 +18,15 @@ export type Entry = {
   hourly?: number;  // €/ч за этот день
   perKm?: number;   // €/км за этот день
   multiplier?: number; // 1 | 1.5 | 2 — коэффициент для часов
+  // Дополнительные объекты в этот же день, у каждого своё время.
+  // Часы суммируются с основным сегментом, обед вычитается один раз за день.
+  extraSegments?: Segment[];
+};
+
+export type Segment = {
+  location: string;
+  start: string;
+  end: string;
 };
 
 export type AppState = {
