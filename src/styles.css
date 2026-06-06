@@ -520,6 +520,88 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   color: #6b1fb8;
   font-weight: 800;
 }
+.multi-chip.on.minus {
+  background: #ffe5e0;
+  border-color: #ff9c8c;
+  color: #b22a14;
+}
+.multi-chip.on.minus::before { color: #b22a14; }
+.multi-chip.on.plus {
+  background: #e8f8ec;
+  border-color: #79d18d;
+  color: #1d8a3a;
+}
+.multi-chip.on.plus::before { color: #1d8a3a; }
+
+/* ---------- Textarea ---------- */
+.field textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 17px;
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* ---------- Notes section ---------- */
+.notes-section { margin-top: 28px; }
+.section-title {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  padding: 4px 4px 12px;
+}
+.note-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.note-total {
+  background: var(--surface);
+  padding: 14px 8px;
+  text-align: center;
+}
+.note-total-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.note-total-value {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.note-total.minus .note-total-value { color: #b22a14; }
+.note-total.plus .note-total-value { color: #1d8a3a; }
+.note-total.net.pos { background: linear-gradient(180deg, #f0fbf3 0%, #e6f7ec 100%); }
+.note-total.net.pos .note-total-value { color: #1d8a3a; }
+.note-total.net.neg { background: linear-gradient(180deg, #fff0ec 0%, #ffe2dc 100%); }
+.note-total.net.neg .note-total-value { color: #b22a14; }
+
+.notes-list .entry-date { background: #fff2dc; color: #8a5a00; }
+.note-pay.minus { background: #ffe5e0; color: #b22a14; }
+.note-pay.plus { background: var(--success-soft); color: #1d8a3a; }
 
 .preview {
   background: var(--accent-soft);

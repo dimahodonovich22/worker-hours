@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { Entry, Worker } from '../types';
+import type { Entry, Note, Worker } from '../types';
 import {
   ddmm,
   entryHours,
@@ -15,10 +15,13 @@ import { exportExcel } from '../export';
 type Props = {
   worker: Worker;
   entries: Entry[];
+  notes: Note[];
   allEntriesForWorker: Entry[];
   onBack: () => void;
   onAddEntry: () => void;
+  onAddNote: () => void;
   onEditEntry: (id: string) => void;
+  onEditNote: (id: string) => void;
   onEditWorker: () => void;
   onDeleteEntry: (id: string) => void;
   onOpenReport: (monthKey: string) => void;
@@ -27,18 +30,25 @@ type Props = {
 export function WorkerDetail({
   worker,
   entries,
+  notes,
   onBack,
   onAddEntry,
+  onAddNote,
   onEditEntry,
+  onEditNote,
   onEditWorker,
   onOpenReport,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const months = useMemo(() => {
-    const set = new Set(entries.map((e) => entryMonthKey(e.date)));
+    const set = new Set([
+      ...entries.map((e) => entryMonthKey(e.date)),
+      ...notes.map((n) => entryMonthKey(n.date)),
+    ]);
     set.add(currentMonthKey());
     return Array.from(set).sort().reverse();
-  }, [entries]);
+  }, [entries, notes]);
 
   const [month, setMonth] = useState<string>(() => months[0] ?? currentMonthKey());
 
@@ -49,6 +59,28 @@ export function WorkerDetail({
         .sort((a, b) => (a.date < b.date ? 1 : -1)),
     [entries, month],
   );
+
+  const visibleNotes = useMemo(
+    () =>
+      notes
+        .filter((n) => entryMonthKey(n.date) === month)
+        .sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [notes, month],
+  );
+
+  const noteTotals = useMemo(() => {
+    let minus = 0;
+    let plus = 0;
+    for (const n of visibleNotes) {
+      if (n.direction === 'minus') minus += n.amount;
+      else plus += n.amount;
+    }
+    return {
+      minus: Math.round(minus * 100) / 100,
+      plus: Math.round(plus * 100) / 100,
+      net: Math.round((plus - minus) * 100) / 100,
+    };
+  }, [visibleNotes]);
 
   const total = monthTotal(entries, worker, month);
 
@@ -141,10 +173,86 @@ export function WorkerDetail({
         </ul>
       )}
 
+      {(visibleNotes.length > 0 || noteTotals.minus > 0 || noteTotals.plus > 0) && (
+        <div className="notes-section">
+          <div className="section-title">Заметки за {formatMonthLabel(month)}</div>
+          <div className="note-totals">
+            <div className="note-total minus">
+              <div className="note-total-label">Я должен</div>
+              <div className="note-total-value">€{formatNum(noteTotals.minus)}</div>
+            </div>
+            <div className="note-total plus">
+              <div className="note-total-label">Мне должны</div>
+              <div className="note-total-value">€{formatNum(noteTotals.plus)}</div>
+            </div>
+            <div className={`note-total net ${noteTotals.net >= 0 ? 'pos' : 'neg'}`}>
+              <div className="note-total-label">Итог</div>
+              <div className="note-total-value">
+                {noteTotals.net >= 0 ? '+' : ''}€{formatNum(Math.abs(noteTotals.net))}
+              </div>
+            </div>
+          </div>
+
+          {visibleNotes.length === 0 ? null : (
+            <ul className="entries notes-list">
+              {visibleNotes.map((n) => (
+                <li key={n.id} className="entry-row" onClick={() => onEditNote(n.id)}>
+                  <div className="entry-date">{ddmm(n.date)}</div>
+                  <div className="entry-main">
+                    <div className="entry-loc">{n.description}</div>
+                    <div className="entry-time">
+                      {n.direction === 'minus' ? 'я должен' : 'мне должны'}
+                    </div>
+                  </div>
+                  <div className={`entry-pay note-pay ${n.direction}`}>
+                    {n.direction === 'minus' ? '−' : '+'}€{formatNum(n.amount)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <footer className="footer-actions">
         <button className="ghost" onClick={() => setMenuOpen(true)}>Экспорт</button>
-        <button className="primary" onClick={onAddEntry}>+ Запись</button>
+        <button className="primary" onClick={() => setAddMenuOpen(true)}>+ Добавить</button>
       </footer>
+
+      {addMenuOpen && (
+        <div className="sheet-backdrop" onClick={() => setAddMenuOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-title">Что добавить</div>
+            <button
+              className="sheet-btn"
+              onClick={() => {
+                setAddMenuOpen(false);
+                onAddEntry();
+              }}
+            >
+              <span className="sheet-btn-icon">💼</span>
+              <span>
+                <strong>Рабочий день</strong>
+                <small>локация, время, км — идёт в зарплату</small>
+              </span>
+            </button>
+            <button
+              className="sheet-btn"
+              onClick={() => {
+                setAddMenuOpen(false);
+                onAddNote();
+              }}
+            >
+              <span className="sheet-btn-icon">📝</span>
+              <span>
+                <strong>Заметка</strong>
+                <small>заправка, расходы — отдельный учёт</small>
+              </span>
+            </button>
+            <button className="sheet-cancel" onClick={() => setAddMenuOpen(false)}>Отмена</button>
+          </div>
+        </div>
+      )}
 
       {menuOpen && (
         <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>

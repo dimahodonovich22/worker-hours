@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AppState, Entry, Worker } from './types';
+import type { AppState, Entry, Note, Worker } from './types';
 import { loadState, saveState, uid } from './storage';
 import { ymd } from './calc';
 import { WorkersList } from './screens/WorkersList';
@@ -7,12 +7,14 @@ import { WorkerDetail } from './screens/WorkerDetail';
 import { EntryForm } from './screens/EntryForm';
 import { WorkerForm } from './screens/WorkerForm';
 import { ReportView } from './screens/ReportView';
+import { NoteForm } from './screens/NoteForm';
 
 type Route =
   | { name: 'workers' }
   | { name: 'worker'; workerId: string }
   | { name: 'entry'; workerId: string; entryId?: string }
   | { name: 'workerForm'; workerId?: string }
+  | { name: 'noteForm'; workerId: string; noteId?: string }
   | { name: 'report'; workerId: string; monthKey: string };
 
 export function App() {
@@ -37,6 +39,7 @@ export function App() {
     setState((s) => ({
       workers: s.workers.filter((w) => w.id !== id),
       entries: s.entries.filter((e) => e.workerId !== id),
+      notes: s.notes.filter((n) => n.workerId !== id),
     }));
   }
 
@@ -52,6 +55,20 @@ export function App() {
 
   function deleteEntry(id: string) {
     setState((s) => ({ ...s, entries: s.entries.filter((e) => e.id !== id) }));
+  }
+
+  function upsertNote(n: Note) {
+    setState((s) => {
+      const exists = s.notes.some((x) => x.id === n.id);
+      return {
+        ...s,
+        notes: exists ? s.notes.map((x) => (x.id === n.id ? n : x)) : [...s.notes, n],
+      };
+    });
+  }
+
+  function deleteNote(id: string) {
+    setState((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== id) }));
   }
 
   function importState(next: AppState) {
@@ -79,13 +96,45 @@ export function App() {
       <WorkerDetail
         worker={worker}
         entries={state.entries.filter((e) => e.workerId === worker.id)}
+        notes={state.notes.filter((n) => n.workerId === worker.id)}
         onBack={() => setRoute({ name: 'workers' })}
         onAddEntry={() => setRoute({ name: 'entry', workerId: worker.id })}
+        onAddNote={() => setRoute({ name: 'noteForm', workerId: worker.id })}
         onEditEntry={(eid) => setRoute({ name: 'entry', workerId: worker.id, entryId: eid })}
+        onEditNote={(nid) => setRoute({ name: 'noteForm', workerId: worker.id, noteId: nid })}
         onEditWorker={() => setRoute({ name: 'workerForm', workerId: worker.id })}
         onDeleteEntry={deleteEntry}
         allEntriesForWorker={state.entries.filter((e) => e.workerId === worker.id)}
         onOpenReport={(monthKey) => setRoute({ name: 'report', workerId: worker.id, monthKey })}
+      />
+    );
+  }
+
+  if (route.name === 'noteForm') {
+    const worker = state.workers.find((w) => w.id === route.workerId);
+    if (!worker) {
+      setRoute({ name: 'workers' });
+      return null;
+    }
+    const existing = route.noteId ? state.notes.find((n) => n.id === route.noteId) : undefined;
+    return (
+      <NoteForm
+        key={existing?.id ?? 'new'}
+        worker={worker}
+        existing={existing}
+        onCancel={() => setRoute({ name: 'worker', workerId: worker.id })}
+        onSave={(data) => {
+          upsertNote({ id: existing?.id ?? uid(), workerId: worker.id, ...data });
+          setRoute({ name: 'worker', workerId: worker.id });
+        }}
+        onDelete={
+          existing
+            ? () => {
+                deleteNote(existing.id);
+                setRoute({ name: 'worker', workerId: worker.id });
+              }
+            : undefined
+        }
       />
     );
   }

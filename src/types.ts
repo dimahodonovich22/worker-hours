@@ -29,7 +29,17 @@ export type Segment = {
   end: string;
 };
 
+export type Note = {
+  id: string;
+  workerId: string;
+  date: string;          // YYYY-MM-DD
+  direction: 'minus' | 'plus'; // minus = я должен начальнику, plus = начальник должен мне
+  amount: number;        // евро
+  description: string;
+};
+
 export type AppState = {
   workers: Worker[];
   entries: Entry[];
+  notes: Note[];
 };
