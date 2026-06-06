@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Entry, Segment, Worker } from '../types';
 import { entryHours, formatNum, ymd } from '../calc';
+import { PhotoPicker } from '../components/PhotoPicker';
 
 type Props = {
   worker: Worker;
@@ -41,6 +42,7 @@ export function EntryForm({
   const [extraSegments, setExtraSegments] = useState<Segment[]>(
     existing?.extraSegments ?? [],
   );
+  const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
 
   function updateSegment(i: number, patch: Partial<Segment>) {
     setExtraSegments((prev) =>
@@ -99,6 +101,7 @@ export function EntryForm({
       perKm: num(perKm),
       multiplier,
       extraSegments: cleanedExtras.length ? cleanedExtras : undefined,
+      photos: photos.length ? photos : undefined,
     });
   }
 
@@ -244,6 +247,8 @@ export function EntryForm({
             />
           </label>
         </div>
+
+        <PhotoPicker photos={photos} onChange={setPhotos} />
 
         <div className="preview">
           <div>Чистое время: <strong>{formatNum(hours)} ч</strong></div>

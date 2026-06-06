@@ -21,6 +21,7 @@ export type Entry = {
   // Дополнительные объекты в этот же день, у каждого своё время.
   // Часы суммируются с основным сегментом, обед вычитается один раз за день.
   extraSegments?: Segment[];
+  photos?: string[]; // data URL'ы (JPEG, сжатые)
 };
 
 export type Segment = {
@@ -36,6 +37,7 @@ export type Note = {
   direction: 'minus' | 'plus'; // minus = я должен начальнику, plus = начальник должен мне
   amount: number;        // евро
   description: string;
+  photos?: string[];     // data URL'ы (JPEG, сжатые)
 };
 
 export type AppState = {

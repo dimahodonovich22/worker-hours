@@ -156,6 +156,9 @@ export function WorkerDetail({
                     {e.multiplier && e.multiplier !== 1 && (
                       <span className="entry-mult">× {e.multiplier}</span>
                     )}
+                    {e.photos && e.photos.length > 0 && (
+                      <span className="entry-photo">📎 {e.photos.length}</span>
+                    )}
                   </div>
                   <div className="entry-time">
                     {e.start}–{e.end}
@@ -199,7 +202,12 @@ export function WorkerDetail({
                 <li key={n.id} className="entry-row" onClick={() => onEditNote(n.id)}>
                   <div className="entry-date">{ddmm(n.date)}</div>
                   <div className="entry-main">
-                    <div className="entry-loc">{n.description}</div>
+                    <div className="entry-loc">
+                      {n.description}
+                      {n.photos && n.photos.length > 0 && (
+                        <span className="entry-photo">📎 {n.photos.length}</span>
+                      )}
+                    </div>
                     <div className="entry-time">
                       {n.direction === 'minus' ? 'я должен' : 'мне должны'}
                     </div>

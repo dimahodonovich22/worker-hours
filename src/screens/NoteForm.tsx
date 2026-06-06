@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Note, Worker } from '../types';
 import { ymd } from '../calc';
+import { PhotoPicker } from '../components/PhotoPicker';
 
 type Props = {
   worker: Worker;
@@ -19,6 +20,7 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
     existing ? String(existing.amount) : '',
   );
   const [description, setDescription] = useState(existing?.description ?? '');
+  const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -33,6 +35,7 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
       direction,
       amount: num(amount),
       description: description.trim(),
+      photos: photos.length ? photos : undefined,
     });
   }
 
@@ -97,6 +100,8 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
             rows={3}
           />
         </label>
+
+        <PhotoPicker photos={photos} onChange={setPhotos} />
 
         <div className="form-hint">
           Заметки <strong>не добавляются автоматически</strong> в сумму к выплате за работу — они учитываются отдельно. В конце месяца вы увидите два итога.
