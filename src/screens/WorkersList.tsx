@@ -22,9 +22,10 @@ type Props = {
   onOpenWorker: (id: string) => void;
   onAddWorker: () => void;
   onImport: (state: AppState) => void;
+  onSetOverviewRates: (rates: { hourly: number; perKm: number }) => void;
 };
 
-export function WorkersList({ state, onOpenWorker, onAddWorker, onImport }: Props) {
+export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetOverviewRates }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const month = currentMonthKey();
 
@@ -94,27 +95,64 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport }: Prop
                 const t = monthTotal(state.entries, w, month);
                 acc.hours += t.hours;
                 acc.km += t.km;
-                acc.pay += t.pay;
                 acc.count += t.count;
                 return acc;
               },
-              { hours: 0, km: 0, pay: 0, count: 0 },
+              { hours: 0, km: 0, count: 0 },
             );
             const round = (n: number) => Math.round(n * 100) / 100;
+            const rateH = state.overviewRates?.hourly ?? 0;
+            const rateK = state.overviewRates?.perKm ?? 0;
+            const payH = round(totals.hours * rateH);
+            const payK = round(totals.km * rateK);
+            const payTotal = round(payH + payK);
+
+            const askRate = (which: 'hourly' | 'perKm') => {
+              const current = which === 'hourly' ? rateH : rateK;
+              const label = which === 'hourly' ? 'Ставка €/час' : 'Ставка €/км';
+              const input = prompt(label, current ? String(current) : '');
+              if (input === null) return;
+              const val = parseFloat(input.replace(',', '.'));
+              if (Number.isNaN(val) || val < 0) {
+                alert('Введите число (например 15 или 0.35)');
+                return;
+              }
+              onSetOverviewRates({
+                hourly: which === 'hourly' ? val : rateH,
+                perKm: which === 'perKm' ? val : rateK,
+              });
+            };
+
             return (
               <div className="grand-total">
                 <div className="grand-total-label">
                   Итог за {formatMonthLabel(month).toLowerCase()} · все работники
                 </div>
-                <div className="totals">
-                  <div>
-                    <span>{formatNum(round(totals.hours))}</span> ч
-                  </div>
-                  <div>
-                    <span>{formatNum(round(totals.km))}</span> км
-                  </div>
-                  <div className="pay">
-                    <span>€{formatNum(round(totals.pay))}</span>
+                <div className="totals overview-totals">
+                  <button className="overview-cell" onClick={() => askRate('hourly')}>
+                    <span>{formatNum(round(totals.hours))}</span>
+                    <div className="overview-unit">ч</div>
+                    <div className="overview-sub">
+                      {rateH > 0 ? `€${formatNum(payH)}` : 'нажмите для ставки'}
+                    </div>
+                    {rateH > 0 && (
+                      <div className="overview-rate">× €{formatNum(rateH)}/ч</div>
+                    )}
+                  </button>
+                  <button className="overview-cell" onClick={() => askRate('perKm')}>
+                    <span>{formatNum(round(totals.km))}</span>
+                    <div className="overview-unit">км</div>
+                    <div className="overview-sub">
+                      {rateK > 0 ? `€${formatNum(payK)}` : 'нажмите для ставки'}
+                    </div>
+                    {rateK > 0 && (
+                      <div className="overview-rate">× €{formatNum(rateK)}/км</div>
+                    )}
+                  </button>
+                  <div className="pay overview-cell overview-cell-static">
+                    <span>€{formatNum(payTotal)}</span>
+                    <div className="overview-unit">всего</div>
+                    <div className="overview-sub">часы + км</div>
                   </div>
                 </div>
                 <div className="grand-total-sub">

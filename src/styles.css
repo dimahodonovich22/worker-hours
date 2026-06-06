@@ -193,6 +193,67 @@ input, select {
   margin-top: 10px;
 }
 
+.overview-totals { align-items: stretch; }
+.overview-cell {
+  background: var(--surface);
+  border: none;
+  padding: 14px 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  transition: background 0.12s ease;
+}
+.overview-cell:active { background: var(--surface-2); }
+.overview-cell span {
+  display: block;
+  font-size: 24px;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.overview-cell .overview-unit {
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.overview-cell .overview-sub {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #1d8a3a;
+  font-variant-numeric: tabular-nums;
+  margin-top: auto;
+}
+.overview-cell .overview-rate {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+.overview-cell-static { cursor: default; }
+.overview-cell-static:active { background: var(--surface); }
+.overview-totals .pay.overview-cell {
+  background: linear-gradient(180deg, #f0fbf3 0%, #e6f7ec 100%);
+}
+.overview-totals .pay.overview-cell span { color: #1d8a3a; }
+.overview-totals .pay.overview-cell .overview-sub { color: #1d8a3a; opacity: 0.7; }
+
 /* ---------- Worker detail ---------- */
 .month-picker { padding: 16px 0 14px; }
 .month-picker select {

@@ -44,4 +44,9 @@ export type AppState = {
   workers: Worker[];
   entries: Entry[];
   notes: Note[];
+  // Ставки для общей плашки на главном экране (независимы от ставок в записях).
+  overviewRates?: {
+    hourly: number;
+    perKm: number;
+  };
 };
