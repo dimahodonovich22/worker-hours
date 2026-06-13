@@ -58,6 +58,67 @@ export function entryPay(e: Entry, worker: Worker): number {
   return Math.round((entryHours(e) * hourly + (e.km || 0) * perKm) * 100) / 100;
 }
 
+/** Понедельник недели, в которую попадает дата (формат YYYY-MM-DD). */
+export function weekStartDate(d: Date): Date {
+  const x = new Date(d);
+  const day = x.getDay(); // 0=вс, 1=пн, ...
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+export function currentWeekStart(): string {
+  return ymd(weekStartDate(new Date()));
+}
+export function weekStartFromDateStr(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return ymd(weekStartDate(d));
+}
+export function weekEnd(startStr: string): string {
+  const d = new Date(startStr + 'T00:00:00');
+  d.setDate(d.getDate() + 6);
+  return ymd(d);
+}
+export function shiftWeek(startStr: string, deltaWeeks: number): string {
+  const d = new Date(startStr + 'T00:00:00');
+  d.setDate(d.getDate() + 7 * deltaWeeks);
+  return ymd(d);
+}
+export function formatWeekLabel(startStr: string): string {
+  const endStr = weekEnd(startStr);
+  const [ys, ms, ds] = startStr.split('-');
+  const [ye, me, de] = endStr.split('-');
+  if (ys === ye && ms === me) return `${ds}–${de}.${ms}.${ys}`;
+  if (ys === ye) return `${ds}.${ms} – ${de}.${me}.${ys}`;
+  return `${ds}.${ms}.${ys} – ${de}.${me}.${ye}`;
+}
+
+export function rangeTotal(
+  entries: Entry[],
+  worker: Worker,
+  startStr: string,
+  endStr: string,
+): MonthTotal {
+  let hours = 0;
+  let km = 0;
+  let pay = 0;
+  let count = 0;
+  for (const e of entries) {
+    if (e.workerId !== worker.id) continue;
+    if (e.date < startStr || e.date > endStr) continue;
+    hours += entryHours(e);
+    km += e.km || 0;
+    pay += entryPay(e, worker);
+    count += 1;
+  }
+  return {
+    hours: Math.round(hours * 100) / 100,
+    km: Math.round(km * 100) / 100,
+    pay: Math.round(pay * 100) / 100,
+    count,
+  };
+}
+
 export function monthTotal(entries: Entry[], worker: Worker, monthKey: string): MonthTotal {
   let hours = 0;
   let km = 0;

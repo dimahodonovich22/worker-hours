@@ -1,6 +1,16 @@
-import { useRef } from 'react';
-import type { AppState } from '../types';
-import { currentMonthKey, formatMonthLabel, formatNum, monthTotal } from '../calc';
+import { useRef, useState } from 'react';
+import type { AppState, Worker } from '../types';
+import {
+  currentMonthKey,
+  currentWeekStart,
+  formatMonthLabel,
+  formatNum,
+  formatWeekLabel,
+  monthTotal,
+  rangeTotal,
+  shiftWeek,
+  weekEnd,
+} from '../calc';
 
 function plural(n: number, one: string, few: string, many: string): string {
   const m10 = n % 10;
@@ -27,7 +37,19 @@ type Props = {
 
 export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetOverviewRates }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [period, setPeriod] = useState<'month' | 'week'>('month');
   const month = currentMonthKey();
+  const [weekStart, setWeekStart] = useState<string>(() => currentWeekStart());
+  const weekEndStr = weekEnd(weekStart);
+
+  const isWeek = period === 'week';
+  const periodLabel = isWeek ? formatWeekLabel(weekStart) : formatMonthLabel(month);
+
+  function totalForWorker(w: Worker) {
+    return isWeek
+      ? rangeTotal(state.entries, w, weekStart, weekEndStr)
+      : monthTotal(state.entries, w, month);
+  }
 
   function exportBackup() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -63,7 +85,39 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
         <button className="link" onClick={onAddWorker}>+ Добавить</button>
       </header>
 
-      <div className="month-label">{formatMonthLabel(month)}</div>
+      <div className="period-switch">
+        <button
+          className={`period-tab ${!isWeek ? 'on' : ''}`}
+          onClick={() => setPeriod('month')}
+        >
+          Месяц
+        </button>
+        <button
+          className={`period-tab ${isWeek ? 'on' : ''}`}
+          onClick={() => setPeriod('week')}
+        >
+          Неделя
+        </button>
+      </div>
+
+      {isWeek ? (
+        <div className="week-nav">
+          <button className="week-arrow" onClick={() => setWeekStart(shiftWeek(weekStart, -1))}>
+            ‹
+          </button>
+          <button
+            className="week-current"
+            onClick={() => setWeekStart(currentWeekStart())}
+          >
+            {periodLabel}
+          </button>
+          <button className="week-arrow" onClick={() => setWeekStart(shiftWeek(weekStart, 1))}>
+            ›
+          </button>
+        </div>
+      ) : (
+        <div className="month-label">{periodLabel}</div>
+      )}
 
       {state.workers.length === 0 ? (
         <div className="empty">
@@ -74,7 +128,7 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
         <>
           <ul className="cards">
             {state.workers.map((w) => {
-              const t = monthTotal(state.entries, w, month);
+              const t = totalForWorker(w);
               return (
                 <li key={w.id} className="card" onClick={() => onOpenWorker(w.id)}>
                   <div className="card-name">{w.name}</div>
@@ -92,7 +146,7 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
           {(() => {
             const totals = state.workers.reduce(
               (acc, w) => {
-                const t = monthTotal(state.entries, w, month);
+                const t = totalForWorker(w);
                 acc.hours += t.hours;
                 acc.km += t.km;
                 acc.count += t.count;
@@ -126,7 +180,7 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
             return (
               <div className="grand-total">
                 <div className="grand-total-label">
-                  Итог за {formatMonthLabel(month).toLowerCase()} · все работники
+                  Итог за {isWeek ? `неделю ${periodLabel}` : formatMonthLabel(month).toLowerCase()} · все работники
                 </div>
                 <div className="totals overview-totals">
                   <button className="overview-cell" onClick={() => askRate('hourly')}>
