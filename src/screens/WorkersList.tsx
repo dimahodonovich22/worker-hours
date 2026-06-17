@@ -51,6 +51,29 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
       : monthTotal(state.entries, w, month);
   }
 
+  function inPeriod(dateStr: string): boolean {
+    if (isWeek) return dateStr >= weekStart && dateStr <= weekEndStr;
+    return dateStr.slice(0, 7) === month;
+  }
+
+  const noteTotals = (() => {
+    let minus = 0;
+    let plus = 0;
+    let count = 0;
+    for (const n of state.notes) {
+      if (!inPeriod(n.date)) continue;
+      if (n.direction === 'minus') minus += n.amount;
+      else plus += n.amount;
+      count += 1;
+    }
+    return {
+      minus: Math.round(minus * 100) / 100,
+      plus: Math.round(plus * 100) / 100,
+      net: Math.round((plus - minus) * 100) / 100,
+      count,
+    };
+  })();
+
   function exportBackup() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -216,6 +239,33 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
               </div>
             );
           })()}
+
+          {noteTotals.count > 0 && (
+            <div className="grand-total grand-total-notes">
+              <div className="grand-total-label">
+                Заметки · все работники
+              </div>
+              <div className="note-totals">
+                <div className="note-total minus">
+                  <div className="note-total-label">Я должен</div>
+                  <div className="note-total-value">€{formatNum(noteTotals.minus)}</div>
+                </div>
+                <div className="note-total plus">
+                  <div className="note-total-label">Мне должны</div>
+                  <div className="note-total-value">€{formatNum(noteTotals.plus)}</div>
+                </div>
+                <div className={`note-total net ${noteTotals.net >= 0 ? 'pos' : 'neg'}`}>
+                  <div className="note-total-label">Итог</div>
+                  <div className="note-total-value">
+                    {noteTotals.net >= 0 ? '+' : ''}€{formatNum(Math.abs(noteTotals.net))}
+                  </div>
+                </div>
+              </div>
+              <div className="grand-total-sub">
+                {noteTotals.count} {pluralizeRecords(noteTotals.count)}
+              </div>
+            </div>
+          )}
         </>
       )}
 
