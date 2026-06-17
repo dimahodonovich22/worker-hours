@@ -240,7 +240,7 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
             );
           })()}
 
-          {noteTotals.count > 0 && (
+          {state.notes.length > 0 && (
             <div className="grand-total grand-total-notes">
               <div className="grand-total-label">
                 Заметки · все работники
