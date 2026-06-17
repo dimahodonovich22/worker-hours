@@ -85,12 +85,24 @@ export function shiftWeek(startStr: string, deltaWeeks: number): string {
   return ymd(d);
 }
 export function formatWeekLabel(startStr: string): string {
-  const endStr = weekEnd(startStr);
+  return formatRangeLabel(startStr, weekEnd(startStr));
+}
+export function formatRangeLabel(startStr: string, endStr: string): string {
   const [ys, ms, ds] = startStr.split('-');
   const [ye, me, de] = endStr.split('-');
   if (ys === ye && ms === me) return `${ds}–${de}.${ms}.${ys}`;
   if (ys === ye) return `${ds}.${ms} – ${de}.${me}.${ys}`;
   return `${ds}.${ms}.${ys} – ${de}.${me}.${ye}`;
+}
+export function daysBetween(startStr: string, endStr: string): number {
+  const s = new Date(startStr + 'T00:00:00');
+  const e = new Date(endStr + 'T00:00:00');
+  return Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+}
+export function shiftDate(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return ymd(d);
 }
 
 export function rangeTotal(

@@ -3,12 +3,13 @@ import type { AppState, Worker } from '../types';
 import {
   currentMonthKey,
   currentWeekStart,
+  daysBetween,
   formatMonthLabel,
   formatNum,
-  formatWeekLabel,
+  formatRangeLabel,
   monthTotal,
   rangeTotal,
-  shiftWeek,
+  shiftDate,
   weekEnd,
 } from '../calc';
 
@@ -39,20 +40,51 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
   const fileRef = useRef<HTMLInputElement>(null);
   const [period, setPeriod] = useState<'month' | 'week'>('month');
   const month = currentMonthKey();
-  const [weekStart, setWeekStart] = useState<string>(() => currentWeekStart());
-  const weekEndStr = weekEnd(weekStart);
+  const [rangeStart, setRangeStart] = useState<string>(() => currentWeekStart());
+  const [rangeEnd, setRangeEnd] = useState<string>(() => weekEnd(currentWeekStart()));
+  const [rangePickerOpen, setRangePickerOpen] = useState(false);
+  const [draftStart, setDraftStart] = useState(rangeStart);
+  const [draftEnd, setDraftEnd] = useState(rangeEnd);
 
   const isWeek = period === 'week';
-  const periodLabel = isWeek ? formatWeekLabel(weekStart) : formatMonthLabel(month);
+  const periodLabel = isWeek ? formatRangeLabel(rangeStart, rangeEnd) : formatMonthLabel(month);
+
+  function shiftRange(dir: 1 | -1) {
+    const len = daysBetween(rangeStart, rangeEnd);
+    setRangeStart(shiftDate(rangeStart, dir * len));
+    setRangeEnd(shiftDate(rangeEnd, dir * len));
+  }
+
+  function resetToCurrentWeek() {
+    const s = currentWeekStart();
+    setRangeStart(s);
+    setRangeEnd(weekEnd(s));
+  }
+
+  function openRangePicker() {
+    setDraftStart(rangeStart);
+    setDraftEnd(rangeEnd);
+    setRangePickerOpen(true);
+  }
+
+  function applyRangePicker() {
+    if (draftStart > draftEnd) {
+      alert('Дата начала позже даты конца');
+      return;
+    }
+    setRangeStart(draftStart);
+    setRangeEnd(draftEnd);
+    setRangePickerOpen(false);
+  }
 
   function totalForWorker(w: Worker) {
     return isWeek
-      ? rangeTotal(state.entries, w, weekStart, weekEndStr)
+      ? rangeTotal(state.entries, w, rangeStart, rangeEnd)
       : monthTotal(state.entries, w, month);
   }
 
   function inPeriod(dateStr: string): boolean {
-    if (isWeek) return dateStr >= weekStart && dateStr <= weekEndStr;
+    if (isWeek) return dateStr >= rangeStart && dateStr <= rangeEnd;
     return dateStr.slice(0, 7) === month;
   }
 
@@ -125,21 +157,57 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
 
       {isWeek ? (
         <div className="week-nav">
-          <button className="week-arrow" onClick={() => setWeekStart(shiftWeek(weekStart, -1))}>
+          <button className="week-arrow" onClick={() => shiftRange(-1)}>
             ‹
           </button>
-          <button
-            className="week-current"
-            onClick={() => setWeekStart(currentWeekStart())}
-          >
+          <button className="week-current" onClick={openRangePicker}>
             {periodLabel}
           </button>
-          <button className="week-arrow" onClick={() => setWeekStart(shiftWeek(weekStart, 1))}>
+          <button className="week-arrow" onClick={() => shiftRange(1)}>
             ›
           </button>
         </div>
       ) : (
         <div className="month-label">{periodLabel}</div>
+      )}
+
+      {rangePickerOpen && (
+        <div className="sheet-backdrop" onClick={() => setRangePickerOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-title">Выберите диапазон дат</div>
+            <label className="field">
+              <span>От</span>
+              <input
+                type="date"
+                value={draftStart}
+                onChange={(e) => setDraftStart(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>До</span>
+              <input
+                type="date"
+                value={draftEnd}
+                onChange={(e) => setDraftEnd(e.target.value)}
+              />
+            </label>
+            <button className="primary" onClick={applyRangePicker}>
+              Применить
+            </button>
+            <button
+              className="ghost"
+              onClick={() => {
+                resetToCurrentWeek();
+                setRangePickerOpen(false);
+              }}
+            >
+              Текущая неделя
+            </button>
+            <button className="sheet-cancel" onClick={() => setRangePickerOpen(false)}>
+              Отмена
+            </button>
+          </div>
+        </div>
       )}
 
       {state.workers.length === 0 ? (
@@ -203,7 +271,7 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
             return (
               <div className="grand-total">
                 <div className="grand-total-label">
-                  Итог за {isWeek ? `неделю ${periodLabel}` : formatMonthLabel(month).toLowerCase()} · все работники
+                  Итог за {isWeek ? periodLabel : formatMonthLabel(month).toLowerCase()} · все работники
                 </div>
                 <div className="totals overview-totals">
                   <button className="overview-cell" onClick={() => askRate('hourly')}>
