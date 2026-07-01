@@ -87,6 +87,7 @@ export function App() {
         onAddWorker={() => setRoute({ name: 'workerForm' })}
         onImport={importState}
         onSetOverviewRates={setOverviewRates}
+        onOpenNote={(workerId, noteId) => setRoute({ name: 'noteForm', workerId, noteId })}
       />
     );
   }

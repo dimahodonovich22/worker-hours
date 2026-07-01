@@ -35,15 +35,17 @@ type Props = {
   onAddWorker: () => void;
   onImport: (state: AppState) => void;
   onSetOverviewRates: (rates: { hourly: number; perKm: number }) => void;
+  onOpenNote: (workerId: string, noteId: string) => void;
 };
 
-export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetOverviewRates }: Props) {
+export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetOverviewRates, onOpenNote }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [period, setPeriod] = useState<'month' | 'week'>('month');
   const [month, setMonth] = useState<string>(() => currentMonthKey());
   const [rangeStart, setRangeStart] = useState<string>(() => currentWeekStart());
   const [rangeEnd, setRangeEnd] = useState<string>(() => weekEnd(currentWeekStart()));
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
+  const [notesModal, setNotesModal] = useState<null | 'minus' | 'plus' | 'net'>(null);
   const [draftStart, setDraftStart] = useState(rangeStart);
   const [draftEnd, setDraftEnd] = useState(rangeEnd);
 
@@ -325,20 +327,32 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
                 Заметки · все работники
               </div>
               <div className="note-totals">
-                <div className="note-total minus">
+                <button
+                  type="button"
+                  className="note-total minus clickable"
+                  onClick={() => setNotesModal('minus')}
+                >
                   <div className="note-total-label">Я должен</div>
                   <div className="note-total-value">€{formatNum(noteTotals.minus)}</div>
-                </div>
-                <div className="note-total plus">
+                </button>
+                <button
+                  type="button"
+                  className="note-total plus clickable"
+                  onClick={() => setNotesModal('plus')}
+                >
                   <div className="note-total-label">Мне должны</div>
                   <div className="note-total-value">€{formatNum(noteTotals.plus)}</div>
-                </div>
-                <div className={`note-total net ${noteTotals.net >= 0 ? 'pos' : 'neg'}`}>
+                </button>
+                <button
+                  type="button"
+                  className={`note-total net clickable ${noteTotals.net >= 0 ? 'pos' : 'neg'}`}
+                  onClick={() => setNotesModal('net')}
+                >
                   <div className="note-total-label">Итог</div>
                   <div className="note-total-value">
                     {noteTotals.net >= 0 ? '+' : ''}€{formatNum(Math.abs(noteTotals.net))}
                   </div>
-                </div>
+                </button>
               </div>
               <div className="grand-total-sub">
                 {noteTotals.count} {pluralizeRecords(noteTotals.count)}
@@ -363,6 +377,61 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
           }}
         />
       </footer>
+
+      {notesModal && (() => {
+        const filtered = state.notes
+          .filter((n) => inPeriod(n.date))
+          .filter((n) => (notesModal === 'net' ? true : n.direction === notesModal))
+          .sort((a, b) => (a.date < b.date ? 1 : -1));
+        const title =
+          notesModal === 'minus' ? 'Я должен' : notesModal === 'plus' ? 'Мне должны' : 'Все заметки';
+        const workerName = (id: string) =>
+          state.workers.find((w) => w.id === id)?.name ?? '—';
+        return (
+          <div className="sheet-backdrop" onClick={() => setNotesModal(null)}>
+            <div className="sheet notes-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="sheet-title">
+                {title} · {isWeek ? periodLabel : formatMonthLabel(month).toLowerCase()}
+              </div>
+              {filtered.length === 0 ? (
+                <div className="empty" style={{ padding: '20px 8px' }}>
+                  <p>Заметок нет.</p>
+                </div>
+              ) : (
+                <ul className="entries notes-modal-list">
+                  {filtered.map((n) => (
+                    <li
+                      key={n.id}
+                      className="entry-row"
+                      onClick={() => {
+                        setNotesModal(null);
+                        onOpenNote(n.workerId, n.id);
+                      }}
+                    >
+                      <div className="entry-date">{n.date.slice(8, 10)}.{n.date.slice(5, 7)}</div>
+                      <div className="entry-main">
+                        <div className="entry-loc">
+                          {n.description}
+                          {n.photos && n.photos.length > 0 && (
+                            <span className="entry-photo">📎 {n.photos.length}</span>
+                          )}
+                        </div>
+                        <div className="entry-time">{workerName(n.workerId)}</div>
+                      </div>
+                      <div className={`entry-pay note-pay ${n.direction}`}>
+                        {n.direction === 'minus' ? '−' : '+'}€{formatNum(n.amount)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button className="sheet-cancel" onClick={() => setNotesModal(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

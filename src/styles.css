@@ -743,6 +743,25 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .notes-list .entry-date { background: #fff2dc; color: #8a5a00; }
 
+.note-total.clickable {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  transition: filter 0.12s ease;
+  text-align: center;
+  width: 100%;
+}
+.note-total.clickable:active { filter: brightness(0.96); }
+
+.notes-modal { max-height: 82vh; overflow-y: auto; }
+.notes-modal-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 4px 0;
+}
+
 .entry-photo {
   display: inline-block;
   margin-left: 8px;
