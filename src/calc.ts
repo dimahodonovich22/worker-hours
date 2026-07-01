@@ -34,6 +34,11 @@ export function currentMonthKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
+export function shiftMonth(monthKey: string, delta: number): string {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 export function entryMonthKey(dateStr: string): string {
   return dateStr.slice(0, 7); // YYYY-MM

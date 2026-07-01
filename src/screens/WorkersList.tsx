@@ -10,6 +10,7 @@ import {
   monthTotal,
   rangeTotal,
   shiftDate,
+  shiftMonth,
   weekEnd,
 } from '../calc';
 
@@ -39,7 +40,7 @@ type Props = {
 export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetOverviewRates }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [period, setPeriod] = useState<'month' | 'week'>('month');
-  const month = currentMonthKey();
+  const [month, setMonth] = useState<string>(() => currentMonthKey());
   const [rangeStart, setRangeStart] = useState<string>(() => currentWeekStart());
   const [rangeEnd, setRangeEnd] = useState<string>(() => weekEnd(currentWeekStart()));
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
@@ -168,7 +169,17 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
           </button>
         </div>
       ) : (
-        <div className="month-label">{periodLabel}</div>
+        <div className="week-nav">
+          <button className="week-arrow" onClick={() => setMonth(shiftMonth(month, -1))}>
+            ‹
+          </button>
+          <button className="week-current" onClick={() => setMonth(currentMonthKey())}>
+            {periodLabel}
+          </button>
+          <button className="week-arrow" onClick={() => setMonth(shiftMonth(month, 1))}>
+            ›
+          </button>
+        </div>
       )}
 
       {rangePickerOpen && (
