@@ -8,6 +8,7 @@ import {
   formatNum,
   formatRangeLabel,
   monthTotal,
+  noteEffectiveAmount,
   rangeTotal,
   shiftDate,
   shiftMonth,
@@ -98,7 +99,7 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
     for (const n of state.notes) {
       if (!inPeriod(n.date)) continue;
       if (n.direction === 'minus') minus += n.amount;
-      else plus += n.amount;
+      else plus += noteEffectiveAmount(n);
       count += 1;
     }
     return {
@@ -415,8 +416,18 @@ export function WorkersList({ state, onOpenWorker, onAddWorker, onImport, onSetO
                           {n.photos && n.photos.length > 0 && (
                             <span className="entry-photo">📎 {n.photos.length}</span>
                           )}
+                          {n.direction === 'plus' && n.cash && (
+                            <span className="entry-cash">
+                              кэш{n.cashDeductPercent ? ` −${formatNum(n.cashDeductPercent)}%` : ''}
+                            </span>
+                          )}
                         </div>
-                        <div className="entry-time">{workerName(n.workerId)}</div>
+                        <div className="entry-time">
+                          {workerName(n.workerId)}
+                          {n.direction === 'plus' && n.cash && n.cashDeductPercent
+                            ? ` · факт €${formatNum(noteEffectiveAmount(n))}`
+                            : ''}
+                        </div>
                       </div>
                       <div className={`entry-pay note-pay ${n.direction}`}>
                         {n.direction === 'minus' ? '−' : '+'}€{formatNum(n.amount)}

@@ -51,6 +51,14 @@ export type MonthTotal = {
   count: number;
 };
 
+export function noteEffectiveAmount(n: import('./types').Note): number {
+  if (n.cash && n.cashDeductPercent && n.cashDeductPercent > 0) {
+    const eff = n.amount * (1 - n.cashDeductPercent / 100);
+    return Math.round(eff * 100) / 100;
+  }
+  return n.amount;
+}
+
 export function entryRate(e: Entry, worker: Worker): { hourly: number; perKm: number } {
   return {
     hourly: e.hourly ?? worker.hourly ?? 0,

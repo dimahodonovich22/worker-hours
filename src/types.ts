@@ -38,6 +38,10 @@ export type Note = {
   amount: number;        // евро
   description: string;
   photos?: string[];     // data URL'ы (JPEG, сжатые)
+  // Для «мне должны»: способ получения. По умолчанию на карту.
+  cash?: boolean;
+  // Процент, который вычитается из суммы, если получено кэшом (0–100).
+  cashDeductPercent?: number;
 };
 
 export type AppState = {

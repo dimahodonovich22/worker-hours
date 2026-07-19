@@ -9,6 +9,7 @@ import {
   formatNum,
   monthTotal,
   currentMonthKey,
+  noteEffectiveAmount,
 } from '../calc';
 import { exportExcel } from '../export';
 
@@ -73,7 +74,7 @@ export function WorkerDetail({
     let plus = 0;
     for (const n of visibleNotes) {
       if (n.direction === 'minus') minus += n.amount;
-      else plus += n.amount;
+      else plus += noteEffectiveAmount(n);
     }
     return {
       minus: Math.round(minus * 100) / 100,
@@ -207,9 +208,17 @@ export function WorkerDetail({
                       {n.photos && n.photos.length > 0 && (
                         <span className="entry-photo">📎 {n.photos.length}</span>
                       )}
+                      {n.direction === 'plus' && n.cash && (
+                        <span className="entry-cash">
+                          кэш{n.cashDeductPercent ? ` −${formatNum(n.cashDeductPercent)}%` : ''}
+                        </span>
+                      )}
                     </div>
                     <div className="entry-time">
                       {n.direction === 'minus' ? 'я должен' : 'мне должны'}
+                      {n.direction === 'plus' && n.cash && n.cashDeductPercent
+                        ? ` · факт €${formatNum(noteEffectiveAmount(n))}`
+                        : ''}
                     </div>
                   </div>
                   <div className={`entry-pay note-pay ${n.direction}`}>

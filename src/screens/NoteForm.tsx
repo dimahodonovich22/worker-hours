@@ -21,6 +21,10 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
   );
   const [description, setDescription] = useState(existing?.description ?? '');
   const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
+  const [cash, setCash] = useState<boolean>(existing?.cash ?? false);
+  const [cashPercent, setCashPercent] = useState<string>(
+    existing?.cashDeductPercent ? String(existing.cashDeductPercent) : '',
+  );
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -30,12 +34,16 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
   const canSave = num(amount) > 0 && description.trim() !== '';
 
   function handleSave() {
+    const isPlus = direction === 'plus';
+    const pct = num(cashPercent);
     onSave({
       date,
       direction,
       amount: num(amount),
       description: description.trim(),
       photos: photos.length ? photos : undefined,
+      cash: isPlus && cash ? true : undefined,
+      cashDeductPercent: isPlus && cash && pct > 0 ? pct : undefined,
     });
   }
 
@@ -90,6 +98,46 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
             autoFocus={!existing}
           />
         </label>
+
+        {direction === 'plus' && (
+          <>
+            <div className="field">
+              <span>Способ получения</span>
+              <div className="multi-row">
+                <label className={`multi-chip ${!cash ? 'on' : ''}`}>
+                  <input
+                    type="radio"
+                    name="cash"
+                    checked={!cash}
+                    onChange={() => setCash(false)}
+                  />
+                  <span>На карту</span>
+                </label>
+                <label className={`multi-chip ${cash ? 'on' : ''}`}>
+                  <input
+                    type="radio"
+                    name="cash"
+                    checked={cash}
+                    onChange={() => setCash(true)}
+                  />
+                  <span>Кэш</span>
+                </label>
+              </div>
+            </div>
+            {cash && (
+              <label className="field">
+                <span>Вычесть % с кэша</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={cashPercent}
+                  onChange={(e) => setCashPercent(e.target.value)}
+                  placeholder="0"
+                />
+              </label>
+            )}
+          </>
+        )}
 
         <label className="field">
           <span>Описание</span>
