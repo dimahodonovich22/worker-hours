@@ -12,6 +12,7 @@ import {
 } from '../calc';
 import { exportExcel } from '../export';
 import { PeriodNav } from '../components/PeriodNav';
+import { Icon } from '../components/Icon';
 
 type Props = {
   worker: Worker;
@@ -129,7 +130,7 @@ export function WorkerDetail({
       <header className="topbar">
         <button className="link" onClick={onBack}>‹ Назад</button>
         <h1>{worker.name}</h1>
-        <button className="link" onClick={onEditWorker}>⚙</button>
+        <button className="link" onClick={onEditWorker} aria-label="Настройки работника"><Icon name="pencil" size={19} /></button>
       </header>
 
       <PeriodNav view={view} onChange={onChangeView} />
@@ -170,7 +171,7 @@ export function WorkerDetail({
                       <span className="entry-mult">× {e.multiplier}</span>
                     )}
                     {e.photos && e.photos.length > 0 && (
-                      <span className="entry-photo">📎 {e.photos.length}</span>
+                      <span className="entry-photo"><Icon name="paperclip" size={11} /> {e.photos.length}</span>
                     )}
                   </div>
                   <div className="entry-time">
@@ -218,7 +219,7 @@ export function WorkerDetail({
                     <div className="entry-loc">
                       {n.description}
                       {n.photos && n.photos.length > 0 && (
-                        <span className="entry-photo">📎 {n.photos.length}</span>
+                        <span className="entry-photo"><Icon name="paperclip" size={11} /> {n.photos.length}</span>
                       )}
                       {n.direction === 'plus' && n.cash && (
                         <span className="entry-cash">
@@ -260,7 +261,7 @@ export function WorkerDetail({
                 onAddEntry();
               }}
             >
-              <span className="sheet-btn-icon">💼</span>
+              <span className="sheet-btn-icon"><Icon name="briefcase" /></span>
               <span>
                 <strong>Рабочий день</strong>
                 <small>локация, время, км — идёт в зарплату</small>
@@ -273,7 +274,7 @@ export function WorkerDetail({
                 onAddNote();
               }}
             >
-              <span className="sheet-btn-icon">📝</span>
+              <span className="sheet-btn-icon"><Icon name="note" /></span>
               <span>
                 <strong>Заметка</strong>
                 <small>заправка, расходы — отдельный учёт</small>
@@ -295,7 +296,7 @@ export function WorkerDetail({
                 onOpenReport();
               }}
             >
-              <span className="sheet-btn-icon">📄</span>
+              <span className="sheet-btn-icon"><Icon name="fileText" /></span>
               <span>
                 <strong>PDF (для начальника)</strong>
                 <small>красиво оформленный отчёт</small>
@@ -308,7 +309,7 @@ export function WorkerDetail({
                 exportExcel(worker, visible, periodBounds(view), expenseNotes);
               }}
             >
-              <span className="sheet-btn-icon">📊</span>
+              <span className="sheet-btn-icon"><Icon name="table" /></span>
               <span>
                 <strong>Excel (.xlsx)</strong>
                 <small>таблица для редактирования</small>
@@ -321,7 +322,7 @@ export function WorkerDetail({
                 exportText();
               }}
             >
-              <span className="sheet-btn-icon">📋</span>
+              <span className="sheet-btn-icon"><Icon name="clipboard" /></span>
               <span>
                 <strong>Текст в буфер</strong>
                 <small>как в ваших заметках</small>

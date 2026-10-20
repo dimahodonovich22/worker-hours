@@ -5,6 +5,7 @@ import { daysOfRange, filterWorkerId, groupByDate, monthDiff, sumDays } from '..
 import { MonthSection, type PeriodRequest } from '../components/feed/MonthSection';
 import { DaySheet, MenuSheet, PeriodSheet, PickWorkerSheet, SwitcherSheet } from '../components/feed/FeedSheets';
 import { downloadBackup, readBackup } from '../backup';
+import { Icon } from '../components/Icon';
 import '../feed.css';
 
 type Props = {
@@ -227,10 +228,10 @@ export function CalendarFeed(props: Props) {
         <span className="test-tag">ТЕСТ</span>
         <button className="feed-switch" onClick={() => setSheet({ kind: 'switcher' })}>
           <span className="feed-switch-label">{filterLabel}</span>
-          <span className="feed-switch-caret">▾</span>
+          <Icon name="chevronDown" size={16} className="feed-switch-caret" />
         </button>
         <label className="feed-icon-btn" aria-label="Перейти к дате">
-          📅
+          <Icon name="calendar" />
           <input
             type="date"
             className="feed-date-input"
@@ -240,7 +241,7 @@ export function CalendarFeed(props: Props) {
           />
         </label>
         <button className="feed-icon-btn" onClick={() => setSheet({ kind: 'menu' })} aria-label="Меню">
-          ⋯
+          <Icon name="more" />
         </button>
       </header>
 
@@ -288,7 +289,7 @@ export function CalendarFeed(props: Props) {
         Сегодня
       </button>
       <button className="feed-fab" onClick={() => startAdd(today, 'entry')} aria-label="Добавить запись за сегодня">
-        +
+        <Icon name="plus" size={26} />
       </button>
 
       <input

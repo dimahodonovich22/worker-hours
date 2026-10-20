@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { compressImage } from '../photos';
+import { Icon } from './Icon';
 
 type Props = {
   photos: string[];
@@ -67,7 +68,7 @@ export function PhotoPicker({ photos, onChange }: Props) {
           disabled={busy}
           onClick={() => cameraRef.current?.click()}
         >
-          📷 Камера
+          <Icon name="camera" size={18} /> Камера
         </button>
         <button
           type="button"
@@ -75,7 +76,7 @@ export function PhotoPicker({ photos, onChange }: Props) {
           disabled={busy}
           onClick={() => galleryRef.current?.click()}
         >
-          🖼 Галерея
+          <Icon name="image" size={18} /> Галерея
         </button>
       </div>
 

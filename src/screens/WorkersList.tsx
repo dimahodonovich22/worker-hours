@@ -9,6 +9,7 @@ import {
   rangeTotal,
 } from '../calc';
 import { PeriodNav } from '../components/PeriodNav';
+import { Icon } from '../components/Icon';
 import { downloadBackup, readBackup } from '../backup';
 
 function plural(n: number, one: string, few: string, many: string): string {
@@ -295,7 +296,7 @@ export function WorkersList({
                         <div className="entry-loc">
                           {n.description}
                           {n.photos && n.photos.length > 0 && (
-                            <span className="entry-photo">📎 {n.photos.length}</span>
+                            <span className="entry-photo"><Icon name="paperclip" size={11} /> {n.photos.length}</span>
                           )}
                           {n.direction === 'plus' && n.cash && (
                             <span className="entry-cash">

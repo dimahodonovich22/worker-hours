@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import type { Entry, Note, Worker } from '../../types';
+import { Icon } from '../Icon';
 import { ddmm, entryHours, formatNum, noteEffectiveAmount } from '../../calc';
 import {
   MONTHS_NOM,
@@ -160,7 +161,8 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
         {notes.map((n) => (
           <span className={`feed-note ${n.direction}`} key={n.id}>
             <span className="feed-obj">
-              📝 {n.description}
+              <Icon name="note" size={12} className="feed-note-icon" />
+              {n.description}
               {who(n.workerId)}
             </span>
             <span className="feed-note-amt">

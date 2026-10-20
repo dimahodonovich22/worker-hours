@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Entry, FeedFilter, Note, Worker } from '../../types';
+import { Icon } from '../Icon';
 import { entryHours, entryPay, formatNum, isPayExpense, noteEffectiveAmount } from '../../calc';
 import { entryLocations, weekdayIndex, type DayTotals } from '../../feedModel';
 import type { PeriodRequest } from './MonthSection';
@@ -38,7 +39,7 @@ export function SwitcherSheet(p: SwitcherProps) {
   const isOn = (f: FeedFilter) =>
     f.kind === p.filter.kind &&
     (f.kind !== 'worker' || (p.filter.kind === 'worker' && p.filter.workerId === f.workerId));
-  const mark = (on: boolean) => (on ? '✓' : '');
+  const mark = (on: boolean) => (on ? <Icon name="check" size={18} /> : null);
 
   return (
     <Sheet title="Чьи часы показывать" onClose={p.onClose}>
@@ -51,7 +52,7 @@ export function SwitcherSheet(p: SwitcherProps) {
             <span>{mark(isOn({ kind: 'me' }))}</span>
           </button>
           <button className="pick-side" onClick={p.onChangeSelf} aria-label="Кто из работников — я">
-            ✎
+            <Icon name="userCheck" size={18} />
           </button>
         </div>
         <button className={`pick-row ${isOn({ kind: 'all' }) ? 'on' : ''}`} onClick={() => p.onPick({ kind: 'all' })}>
@@ -69,7 +70,7 @@ export function SwitcherSheet(p: SwitcherProps) {
                 <span>{mark(isOn(f))}</span>
               </button>
               <button className="pick-side" onClick={() => p.onEditWorker(w.id)} aria-label="Настройки работника">
-                ⚙
+                <Icon name="pencil" size={17} />
               </button>
             </div>
           );
@@ -126,21 +127,21 @@ export function MenuSheet(p: MenuProps) {
   return (
     <Sheet title="Меню" onClose={p.onClose}>
       <button className="sheet-btn" onClick={p.onSummary}>
-        <span className="sheet-btn-icon">📊</span>
+        <span className="sheet-btn-icon"><Icon name="chart" /></span>
         <span>
           <strong>Сводка и итоги</strong>
           <small>прежний главный экран: работники, ставки, заметки</small>
         </span>
       </button>
       <button className="sheet-btn" onClick={p.onBackup}>
-        <span className="sheet-btn-icon">💾</span>
+        <span className="sheet-btn-icon"><Icon name="download" /></span>
         <span>
           <strong>Скачать backup</strong>
           <small>копия данных тестового приложения</small>
         </span>
       </button>
       <button className="sheet-btn" onClick={p.onImport}>
-        <span className="sheet-btn-icon">📥</span>
+        <span className="sheet-btn-icon"><Icon name="upload" /></span>
         <span>
           <strong>Импорт данных</strong>
           <small>например, backup из основного приложения</small>
@@ -197,7 +198,7 @@ export function DaySheet(p: DayProps) {
         {p.notes.map((n) => (
           <button key={n.id} className="day-item" onClick={() => p.onEditNote(n)}>
             <span className="day-item-main">
-              <b>📝 {n.description}</b>
+              <b><Icon name="note" size={14} className="day-item-icon" />{n.description}</b>
               <small>
                 {name(n.workerId)}
                 {isPayExpense(n) ? 'расход по работе · в сумме' : n.direction === 'minus' ? 'я должен' : 'мне должны'}

@@ -1,0 +1,670 @@
+/* =========================================================================
+   Liquid Glass — оформление в стиле iOS 26 (только внешний вид).
+   Подключается последним и переопределяет styles.css и feed.css.
+
+   Принципы:
+   • Настоящее размытое стекло (backdrop-filter) — только у «парящих» элементов,
+     под которыми прокручивается лента: шапка, заголовок месяца, нижние кнопки,
+     панели. Карточки лежат на неподвижном фоне — им достаточно полупрозрачной
+     заливки с бликом, без размытия (так прокрутка остаётся плавной на iPhone).
+   • Фон — спокойный «утренний свет»: небо, рассвет, мята.
+   • Шрифт и цвета — системные iOS. Подписи обычным регистром.
+   ========================================================================= */
+
+:root {
+  color-scheme: light;
+
+  /* Системные цвета iOS */
+  --text: #000000;
+  --text-2: rgba(28, 28, 30, 0.86);
+  --muted: rgba(60, 60, 67, 0.72);
+  --accent: #007aff;
+  --accent-soft: rgba(0, 122, 255, 0.12);
+  --success: #34c759;
+  --success-soft: rgba(52, 199, 89, 0.15);
+  --danger: #ff3b30;
+  --money: #1f8a3c;
+  --owed: #c4291c;
+
+  /* Поверхности */
+  --bg: #eef1f6;
+  --surface: rgba(255, 255, 255, 0.66);   /* панели на фоне */
+  --surface-2: rgba(118, 118, 128, 0.1);  /* заливка внутри стекла */
+  --border: rgba(60, 60, 67, 0.12);
+  --border-strong: rgba(60, 60, 67, 0.22);
+
+  /* Стекло */
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-thick: rgba(247, 248, 251, 0.78);
+  --glass-blur: blur(22px) saturate(185%);
+  --glass-blur-thick: blur(36px) saturate(190%);
+  /* Блик по верхнему краю + тонкий светлый контур, как у стекла iOS */
+  --rim: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 0.5px rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+  --lift: 0 12px 32px rgba(34, 50, 84, 0.12), 0 1px 3px rgba(34, 50, 84, 0.06);
+  --lift-sm: 0 4px 14px rgba(34, 50, 84, 0.07), 0 0.5px 1px rgba(34, 50, 84, 0.05);
+  --shadow-sm: var(--lift-sm);
+  --shadow-md: var(--lift);
+  --shadow-lg: var(--lift);
+
+  --spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ---------- Фон ---------- */
+
+html {
+  background: var(--bg);
+}
+body,
+#root {
+  background: transparent !important;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: -10vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(58vmax 48vmax at 6% 2%, rgba(128, 180, 255, 0.78), transparent 62%),
+    radial-gradient(52vmax 44vmax at 104% 30%, rgba(255, 186, 150, 0.66), transparent 62%),
+    radial-gradient(62vmax 54vmax at 22% 106%, rgba(132, 220, 186, 0.6), transparent 62%),
+    linear-gradient(180deg, #e7eefa 0%, #f3eef1 100%);
+}
+
+/* ---------- Общие приёмы стекла ---------- */
+
+.feed-switch,
+.feed-icon-btn,
+.feed-month-head,
+.feed-today-btn,
+.topbar,
+button.ghost,
+.sheet-cancel {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: none;
+  box-shadow: var(--rim), var(--lift-sm);
+}
+
+/* Панели на фоне — полупрозрачная заливка с бликом, без размытия */
+.feed-week,
+.card,
+.entries,
+.totals,
+.note-totals,
+.grand-total,
+.segment,
+.field-check,
+.field input,
+.field select,
+.field textarea,
+.month-picker select,
+.multi-chip,
+.photo-thumb,
+.feed-banner {
+  border: none;
+  box-shadow: var(--rim), var(--lift-sm);
+}
+
+:where(button, a, input, select, textarea, label):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Лента: шапка парит над содержимым ---------- */
+
+.feed-header {
+  background: linear-gradient(to bottom, rgba(236, 241, 250, 0.9) 35%, rgba(236, 241, 250, 0.35) 75%, rgba(236, 241, 250, 0));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: none;
+  gap: 8px;
+}
+/* Плавное размытие под шапкой: содержимое уходит под неё мягко, без «обрывков» строк */
+.feed-header::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -10px 0;
+  z-index: -1;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  pointer-events: none;
+}
+.feed-switch {
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.feed-switch-caret {
+  color: var(--muted);
+}
+.feed-icon-btn {
+  width: 42px;
+  height: 42px;
+  color: var(--text);
+}
+.feed-switch:active,
+.feed-icon-btn:active,
+.feed-today-btn:active {
+  transform: scale(0.96);
+}
+.feed-switch,
+.feed-icon-btn,
+.feed-today-btn,
+.feed-fab {
+  transition: transform 0.25s var(--spring);
+}
+.test-tag {
+  background: rgba(255, 149, 0, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  font-size: 10px;
+  padding: 3px 8px;
+}
+
+/* Заголовок месяца — стеклянная капсула, закреплена под шапкой */
+.feed-month-head {
+  top: calc(var(--feed-header-h) + env(safe-area-inset-top) + 2px);
+  width: 100%;
+  margin: 6px 0 10px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  align-items: center;
+}
+.feed-month-title {
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+.feed-sum {
+  color: var(--money);
+  font-size: 13px;
+}
+
+/* Неделя */
+.feed-week {
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 22px;
+  margin: 0 0 10px;
+}
+.feed-week-head {
+  background: transparent;
+  border-bottom: 0.5px solid var(--border);
+  padding: 9px 14px 7px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+.feed-week-head:active {
+  background: rgba(118, 118, 128, 0.08);
+}
+.feed-week-range,
+.feed-week-cont {
+  color: var(--muted);
+}
+
+/* День */
+.feed-day {
+  padding: 5px 14px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.09);
+}
+.feed-day.weekend {
+  background: rgba(118, 118, 128, 0.045);
+}
+.feed-day:active {
+  background: rgba(118, 118, 128, 0.12);
+}
+.feed-day.today {
+  background: rgba(0, 122, 255, 0.07);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.feed-day-label {
+  color: var(--text-2);
+}
+.feed-day.weekend .feed-day-label,
+.feed-day-empty {
+  color: rgba(60, 60, 67, 0.45);
+}
+.feed-who {
+  color: var(--muted);
+}
+.feed-note-icon {
+  vertical-align: -1px;
+  margin-right: 4px;
+  color: var(--muted);
+}
+.feed-note.plus .feed-note-amt { color: var(--money); }
+.feed-note.minus .feed-note-amt { color: var(--owed); }
+
+.feed-more {
+  color: var(--accent);
+}
+
+.feed-banner {
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 18px;
+}
+.feed-banner button {
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+
+/* Нижние кнопки: «Сегодня» — стекло, «+» — тонированное стекло */
+.feed-today-btn {
+  border-radius: 999px;
+  padding: 11px 20px;
+  color: var(--accent);
+  font-weight: 650;
+}
+.feed-fab {
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(48, 150, 255, 0.94), rgba(0, 112, 240, 0.94));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.35),
+    0 12px 28px rgba(0, 110, 240, 0.35);
+}
+.feed-fab:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Прежние экраны: шапка — парящая капсула ---------- */
+
+.topbar {
+  top: calc(env(safe-area-inset-top) + 8px);
+  margin: 8px 0 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border-bottom: none;
+}
+.topbar h1 {
+  font-size: 16px;
+  font-weight: 650;
+  animation-duration: 0.45s;
+}
+.topbar .link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 8px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+.topbar {
+  gap: 4px;
+}
+.topbar .link:active {
+  background: rgba(118, 118, 128, 0.12);
+}
+
+.month-label,
+.form-sub {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Сегменты «Месяц / Неделя» — как переключатель iOS */
+.period-switch {
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 999px;
+  padding: 3px;
+}
+.period-tab {
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+.period-tab.on {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 3px 10px rgba(34, 50, 84, 0.12);
+}
+.week-arrow,
+.week-current {
+  background: rgba(255, 255, 255, 0.62);
+  border: none;
+  border-radius: 999px;
+  box-shadow: var(--rim), var(--lift-sm);
+}
+
+/* Карточки работников и итоги */
+.card {
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 24px;
+}
+.card-stats .pay,
+.entry-pay {
+  background: var(--success-soft);
+  color: var(--money);
+}
+
+.totals,
+.note-totals {
+  background: rgba(255, 255, 255, 0.58);
+  gap: 0;
+  border-radius: 22px;
+}
+.totals > div,
+.note-total,
+.overview-cell {
+  background: transparent;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.totals > div + div,
+.note-total + .note-total {
+  border-left: 0.5px solid var(--border);
+}
+.totals .pay,
+.overview-totals .pay.overview-cell,
+.note-total.net.pos {
+  background: rgba(52, 199, 89, 0.12);
+}
+.note-total.net.neg {
+  background: rgba(255, 59, 48, 0.1);
+}
+.totals .pay span,
+.overview-totals .pay.overview-cell span,
+.note-total.plus .note-total-value,
+.note-total.net.pos .note-total-value {
+  color: var(--money);
+}
+.note-total.minus .note-total-value,
+.note-total.net.neg .note-total-value {
+  color: var(--owed);
+}
+.totals .totals-extra {
+  color: var(--money);
+}
+.note-total-label,
+.overview-cell .overview-unit,
+.grand-total-label,
+.section-title {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.grand-total {
+  background: rgba(255, 255, 255, 0.42);
+  border-radius: 26px;
+}
+.grand-total .totals {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Список записей */
+.entries {
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 22px;
+}
+.entry-row {
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.1);
+}
+.entry-row:active {
+  background: rgba(118, 118, 128, 0.1);
+}
+.entry-date {
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 10px;
+}
+.entry-photo {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(118, 118, 128, 0.12);
+}
+.entry-no-lunch,
+.entry-cash,
+.entry-in-pay {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Нижняя панель прежних экранов — без серой подложки, кнопки-капсулы парят */
+.footer-actions {
+  background: transparent;
+}
+
+/* ---------- Кнопки ---------- */
+
+button.primary,
+button.ghost,
+button.danger {
+  border-radius: 999px;
+  transition: transform 0.25s var(--spring), box-shadow 0.2s ease, background 0.2s ease;
+}
+button.primary {
+  background: linear-gradient(180deg, #2b8cff 0%, #0a72ee 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 10px 22px rgba(0, 110, 240, 0.28);
+}
+button.primary:active,
+button.ghost:active {
+  transform: scale(0.97);
+}
+button.ghost {
+  color: var(--text);
+}
+button.danger {
+  background: rgba(255, 59, 48, 0.08);
+  border: none;
+}
+
+/* ---------- Формы ---------- */
+
+.field > span {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 600;
+  padding-left: 16px;
+}
+.field input,
+.field select,
+.field textarea,
+.month-picker select {
+  background-color: rgba(255, 255, 255, 0.72);
+  border-radius: 16px;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  box-shadow: var(--rim), 0 0 0 4px rgba(0, 122, 255, 0.22);
+}
+.field-check {
+  background: rgba(255, 255, 255, 0.66);
+  border-radius: 18px;
+}
+.field-check input {
+  border-radius: 8px;
+}
+.multi-chip {
+  background: rgba(255, 255, 255, 0.66);
+  border-radius: 999px;
+}
+.multi-chip.on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 0 0 1.5px currentColor;
+}
+.segment {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 22px;
+}
+.preview,
+.form-hint,
+.report-hint {
+  background: rgba(0, 122, 255, 0.09);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.photo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.photo-thumb {
+  border-radius: 16px;
+}
+
+/* ---------- Панели снизу (iOS 26: парят с отступом, все углы скруглены) ---------- */
+
+.sheet-backdrop {
+  background: rgba(20, 26, 38, 0.22);
+  padding: 0 8px calc(env(safe-area-inset-bottom) + 8px);
+  animation: glassFade 0.3s ease;
+}
+.sheet {
+  position: relative;
+  background: var(--glass-thick);
+  -webkit-backdrop-filter: var(--glass-blur-thick);
+  backdrop-filter: var(--glass-blur-thick);
+  border-radius: 34px;
+  padding: 24px 14px 14px;
+  box-shadow: var(--rim), 0 24px 64px rgba(20, 30, 50, 0.28);
+  animation: glassSheetIn 0.45s var(--spring);
+}
+/* «Ручка» сверху панели */
+.sheet::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(60, 60, 67, 0.25);
+  transform: translateX(-50%);
+}
+.sheet-title {
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: none;
+  padding: 2px 0 8px;
+  margin-bottom: 0;
+}
+.sheet-btn,
+.pick-row,
+.day-item,
+.sum-row,
+.pick-side {
+  background: rgba(118, 118, 128, 0.1);
+  border-radius: 18px;
+}
+.pick-row.on {
+  background: rgba(0, 122, 255, 0.13);
+}
+.sheet-btn:active,
+.pick-row:active,
+.day-item:active,
+.sum-row:active,
+.pick-side:active {
+  background: rgba(118, 118, 128, 0.2);
+}
+.sheet-btn-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(0, 122, 255, 0.12);
+  color: var(--accent);
+}
+.pick-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.day-item-icon {
+  vertical-align: -2px;
+  margin-right: 6px;
+  color: var(--muted);
+}
+.day-item-side small,
+.sum-pay,
+.period-total b,
+.day-item-side.note-plus b {
+  color: var(--money);
+}
+.day-item-side.note-minus b {
+  color: var(--owed);
+}
+.period-total {
+  background: rgba(52, 199, 89, 0.13);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.sheet-cancel {
+  border-radius: 999px;
+  color: var(--accent);
+}
+
+@keyframes glassFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes glassSheetIn {
+  from { opacity: 0; transform: translateY(28px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Отчёт для печати остаётся «бумажным» ---------- */
+
+.report {
+  border-radius: 22px;
+}
+
+/* ---------- Доступность ---------- */
+
+/* «Понижение прозрачности» в настройках iPhone — стекло становится плотным */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass: rgba(249, 250, 252, 0.98);
+    --glass-thick: #f6f7fa;
+  }
+  * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .feed-week,
+  .card,
+  .entries,
+  .totals,
+  .note-totals,
+  .field input,
+  .field select,
+  .field textarea {
+    background-color: #ffffff;
+  }
+}
+
+/* «Уменьшение движения» */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body::before {
+    display: none;
+  }
+}
