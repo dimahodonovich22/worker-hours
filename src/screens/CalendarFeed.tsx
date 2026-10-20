@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { AppState, Entry, FeedFilter, Note } from '../types';
 import { shiftMonth, ymd } from '../calc';
 import { daysOfRange, filterWorkerId, groupByDate, monthDiff, sumDays } from '../feedModel';
+import { weekStartFromDateStr } from '../calc';
 import { MonthSection, type PeriodRequest } from '../components/feed/MonthSection';
 import { DaySheet, MenuSheet, PeriodSheet, PickWorkerSheet, SwitcherSheet } from '../components/feed/FeedSheets';
 import { downloadBackup, readBackup } from '../backup';
@@ -86,10 +87,18 @@ export function CalendarFeed(props: Props) {
   const totalMonths = monthDiff(earliest, lastMonth) + 1;
   const count = Math.min(loaded, totalMonths);
   const hasMore = count < totalMonths;
+  // Сверху — текущий месяц, ниже — прошлые.
   const months = useMemo(
-    () => Array.from({ length: count }, (_, i) => shiftMonth(lastMonth, i - count + 1)),
+    () => Array.from({ length: count }, (_, i) => shiftMonth(lastMonth, -i)),
     [count, lastMonth],
   );
+  // Будущие недели не показываем: лента начинается с текущей недели
+  // (или с недели самой поздней записи, если она в будущем).
+  const lastWeekStart = useMemo(() => {
+    let latest = today;
+    for (const x of [...state.entries, ...state.notes]) if (x.date > latest) latest = x.date;
+    return weekStartFromDateStr(latest);
+  }, [state.entries, state.notes, today]);
 
   useEffect(() => {
     memory.loaded = loaded;
@@ -98,21 +107,13 @@ export function CalendarFeed(props: Props) {
 
   /* ---------- Прокрутка ---------- */
 
-  // Подгрузка более ранних месяцев сверху без «прыжка» экрана.
-  const prependFrom = useRef<number | null>(null);
-  const loadMore = useCallback(() => {
-    prependFrom.current = document.documentElement.scrollHeight;
-    setLoaded((n) => n + MONTHS_PER_LOAD);
-  }, []);
+  // Более ранние месяцы догружаются снизу.
+  const loadMore = useCallback(() => setLoaded((n) => n + MONTHS_PER_LOAD), []);
 
   const jump = useRef<Jump | null>(null);
   const [jumpTick, setJumpTick] = useState(0);
 
   useLayoutEffect(() => {
-    if (prependFrom.current !== null) {
-      window.scrollBy(0, document.documentElement.scrollHeight - prependFrom.current);
-      prependFrom.current = null;
-    }
     const j = jump.current;
     if (j) {
       jump.current = null;
@@ -136,17 +137,17 @@ export function CalendarFeed(props: Props) {
   // Первый показ: вернуться туда, где были, или открыть на сегодняшнем дне.
   useLayoutEffect(() => {
     if (memory.scrollY !== null) window.scrollTo(0, memory.scrollY);
-    else document.getElementById(`day-${today}`)?.scrollIntoView({ block: 'center' });
+    else window.scrollTo(0, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const topRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!hasMore || !topRef.current) return;
+    if (!hasMore || !bottomRef.current) return;
     const io = new IntersectionObserver(([e]) => e.isIntersecting && loadMore(), {
-      rootMargin: '700px 0px 0px 0px',
+      rootMargin: '0px 0px 700px 0px',
     });
-    io.observe(topRef.current);
+    io.observe(bottomRef.current);
     return () => io.disconnect();
   }, [hasMore, loadMore, count]);
 
@@ -259,17 +260,6 @@ export function CalendarFeed(props: Props) {
         )
       )}
 
-      {/* Ранние месяцы подгружаются сами при прокрутке вверх; кнопка — на всякий случай. */}
-      <div ref={topRef} className="feed-top">
-        {hasMore ? (
-          <button className="feed-more" onClick={loadMore}>
-            ↑ Показать более ранние месяцы
-          </button>
-        ) : (
-          'Начало записей'
-        )}
-      </div>
-
       {months.map((mk) => (
         <MonthSection
           key={mk}
@@ -280,10 +270,22 @@ export function CalendarFeed(props: Props) {
           showNames={showNames}
           today={today}
           isLastMonth={mk === lastMonth}
+          lastWeekStart={lastWeekStart}
           onDay={onDay}
           onPeriod={onPeriod}
         />
       ))}
+
+      {/* Ранние месяцы подгружаются сами при прокрутке вниз; кнопка — на всякий случай. */}
+      <div ref={bottomRef} className="feed-top feed-bottom">
+        {hasMore ? (
+          <button className="feed-more" onClick={loadMore}>
+            Показать более ранние месяцы ↓
+          </button>
+        ) : (
+          'Начало записей'
+        )}
+      </div>
 
       <button className="feed-today-btn" onClick={() => goTo(today)}>
         Сегодня

@@ -28,14 +28,16 @@ type Props = {
   workersById: Map<string, Worker>;
   showNames: boolean; // режим «Все работники» — подписываем, чья запись
   today: string;
-  isLastMonth: boolean; // нижний месяц ленты — его последнюю неделю подытоживаем здесь
+  isLastMonth: boolean; // самый новый месяц ленты — его последнюю неделю подытоживаем здесь
+  lastWeekStart: string; // недели позже этой (будущие) не показываем
   onDay: (date: string) => void;
   onPeriod: (req: PeriodRequest) => void;
 };
 
 export function totalsLabel(t: DayTotals): string {
   if (t.count === 0 && t.pay === 0) return '—';
-  return `${formatNum(t.hours)} ч · €${formatNum(t.pay)}`;
+  const km = t.km > 0 ? ` · ${formatNum(t.km)} км` : '';
+  return `${formatNum(t.hours)} ч${km} · €${formatNum(t.pay)}`;
 }
 
 export const MonthSection = memo(function MonthSection({
@@ -46,6 +48,7 @@ export const MonthSection = memo(function MonthSection({
   showNames,
   today,
   isLastMonth,
+  lastWeekStart,
   onDay,
   onPeriod,
 }: Props) {
@@ -68,53 +71,62 @@ export const MonthSection = memo(function MonthSection({
         <span className="feed-sum">{totalsLabel(monthTotal)}</span>
       </button>
 
-      {parts.map((p, i) => {
-        const weekNo = isoWeek(p.weekStart);
-        const range = `${ddmm(p.weekStart)}–${ddmm(p.weekEnd)}`;
-        // Итог недели показываем один раз: в части, где её воскресенье
-        // (или в самом нижнем месяце, если неделя уходит в будущий месяц).
-        const showTotals = p.hasWeekEnd || (isLastMonth && i === parts.length - 1);
-        const weekTotal = showTotals
-          ? sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById)
-          : null;
-        return (
-          <div className="feed-week" key={p.weekStart}>
-            <button
-              className="feed-week-head"
-              onClick={() =>
-                onPeriod({
-                  kind: 'week',
-                  start: p.weekStart,
-                  end: p.weekEnd,
-                  title: `Неделя ${weekNo} · ${range}`,
-                })
-              }
-            >
-              <span>
-                Неделя {weekNo}
-                <span className="feed-week-range">{range}</span>
-              </span>
-              {weekTotal ? (
-                <span className="feed-sum">{totalsLabel(weekTotal)}</span>
-              ) : (
-                <span className="feed-week-cont">итог ниже ↓</span>
-              )}
-            </button>
-            {p.days.map((ds) => (
-              <DayRow
-                key={ds}
-                ds={ds}
-                entries={entriesByDate.get(ds)}
-                notes={notesByDate.get(ds)}
-                workersById={workersById}
-                showNames={showNames}
-                isToday={ds === today}
-                onDay={onDay}
-              />
-            ))}
-          </div>
-        );
-      })}
+      {/* Недели — новые сверху, прошлые ниже; дни внутри недели — Пн→Вс */}
+      {parts
+        .map((p, i) => ({ p, i }))
+        .filter(({ p }) => p.weekStart <= lastWeekStart)
+        .reverse()
+        .map(({ p, i }) => {
+          const weekNo = isoWeek(p.weekStart);
+          // Коротко: «12–18.10», а на стыке месяцев — «28.09–04.10».
+          const range =
+            p.weekStart.slice(5, 7) === p.weekEnd.slice(5, 7)
+              ? `${p.weekStart.slice(8)}–${ddmm(p.weekEnd)}`
+              : `${ddmm(p.weekStart)}–${ddmm(p.weekEnd)}`;
+          // Итог недели показываем один раз: в части, где её воскресенье
+          // (или в самом новом месяце, если неделя уходит в будущий месяц).
+          const showTotals = p.hasWeekEnd || (isLastMonth && i === parts.length - 1);
+          const weekTotal = showTotals
+            ? sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById)
+            : null;
+          return (
+            <div className="feed-week" key={p.weekStart}>
+              <button
+                className="feed-week-head"
+                onClick={() =>
+                  onPeriod({
+                    kind: 'week',
+                    start: p.weekStart,
+                    end: p.weekEnd,
+                    title: `Неделя ${weekNo} · ${range}`,
+                  })
+                }
+              >
+                <span>
+                  Неделя {weekNo}
+                  <span className="feed-week-range">{range}</span>
+                </span>
+                {weekTotal ? (
+                  <span className="feed-sum">{totalsLabel(weekTotal)}</span>
+                ) : (
+                  <span className="feed-week-cont">итог выше ↑</span>
+                )}
+              </button>
+              {p.days.map((ds) => (
+                <DayRow
+                  key={ds}
+                  ds={ds}
+                  entries={entriesByDate.get(ds)}
+                  notes={notesByDate.get(ds)}
+                  workersById={workersById}
+                  showNames={showNames}
+                  isToday={ds === today}
+                  onDay={onDay}
+                />
+              ))}
+            </div>
+          );
+        })}
     </section>
   );
 });
@@ -155,6 +167,7 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
               {entryLocations(e)}
               {who(e.workerId)}
             </span>
+            <span className="feed-km">{e.km ? `${formatNum(e.km)} км` : ''}</span>
             <span className="feed-hours">{formatNum(entryHours(e))} ч</span>
           </span>
         ))}
