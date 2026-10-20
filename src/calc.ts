@@ -1,4 +1,4 @@
-import type { Entry, PeriodView, Worker } from './types';
+import type { Entry, Note, PeriodView, Worker } from './types';
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -51,12 +51,33 @@ export type MonthTotal = {
   count: number;
 };
 
-export function noteEffectiveAmount(n: import('./types').Note): number {
+export function noteEffectiveAmount(n: Note): number {
   if (n.cash && n.cashDeductPercent && n.cashDeductPercent > 0) {
     const eff = n.amount * (1 - n.cashDeductPercent / 100);
     return Math.round(eff * 100) / 100;
   }
   return n.amount;
+}
+
+/** Расход по работе: «мне должны» с галочкой — входит в сумму к выплате. */
+export function isPayExpense(n: Note): boolean {
+  return n.direction === 'plus' && !!n.addToPay;
+}
+
+/** Сумма расходов по работе за период (по одному работнику или по всем). */
+export function expensesTotal(
+  notes: Note[],
+  start: string,
+  end: string,
+  workerId?: string,
+): number {
+  let sum = 0;
+  for (const n of notes) {
+    if (workerId && n.workerId !== workerId) continue;
+    if (n.date < start || n.date > end) continue;
+    if (isPayExpense(n)) sum += noteEffectiveAmount(n);
+  }
+  return Math.round(sum * 100) / 100;
 }
 
 export function entryRate(e: Entry, worker: Worker): { hourly: number; perKm: number } {

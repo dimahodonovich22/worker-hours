@@ -1,6 +1,13 @@
 import { useRef, useState } from 'react';
 import type { AppState, PeriodView, Worker } from '../types';
-import { formatNum, noteEffectiveAmount, periodBounds, rangeTotal } from '../calc';
+import {
+  expensesTotal,
+  formatNum,
+  isPayExpense,
+  noteEffectiveAmount,
+  periodBounds,
+  rangeTotal,
+} from '../calc';
 import { PeriodNav } from '../components/PeriodNav';
 
 function plural(n: number, one: string, few: string, many: string): string {
@@ -51,6 +58,12 @@ export function WorkersList({
     return rangeTotal(state.entries, w, bounds.start, bounds.end);
   }
 
+  // Расходы по работе (заметки «мне должны» с галочкой) — прибавляются к сумме к выплате.
+  function expensesForWorker(w: Worker) {
+    return expensesTotal(state.notes, bounds.start, bounds.end, w.id);
+  }
+  const allExpenses = expensesTotal(state.notes, bounds.start, bounds.end);
+
   function inPeriod(dateStr: string): boolean {
     return dateStr >= bounds.start && dateStr <= bounds.end;
   }
@@ -61,9 +74,11 @@ export function WorkersList({
     let count = 0;
     for (const n of state.notes) {
       if (!inPeriod(n.date)) continue;
+      count += 1;
+      // Расходы по работе уже в сумме к выплате — здесь не считаем, чтобы не было двойного учёта.
+      if (isPayExpense(n)) continue;
       if (n.direction === 'minus') minus += n.amount;
       else plus += noteEffectiveAmount(n);
-      count += 1;
     }
     return {
       minus: Math.round(minus * 100) / 100,
@@ -119,13 +134,14 @@ export function WorkersList({
           <ul className="cards">
             {state.workers.map((w) => {
               const t = totalForWorker(w);
+              const pay = Math.round((t.pay + expensesForWorker(w)) * 100) / 100;
               return (
                 <li key={w.id} className="card" onClick={() => onOpenWorker(w.id)}>
                   <div className="card-name">{w.name}</div>
                   <div className="card-stats">
                     <span>{formatNum(t.hours)} ч</span>
                     <span>{formatNum(t.km)} км</span>
-                    <span className="pay">€{formatNum(t.pay)}</span>
+                    <span className="pay">€{formatNum(pay)}</span>
                   </div>
                   <div className="card-sub">{t.count} записей</div>
                 </li>
@@ -149,7 +165,7 @@ export function WorkersList({
             const rateK = state.overviewRates?.perKm ?? 0;
             const payH = round(totals.hours * rateH);
             const payK = round(totals.km * rateK);
-            const payTotal = round(payH + payK);
+            const payTotal = round(payH + payK + allExpenses);
 
             const askRate = (which: 'hourly' | 'perKm') => {
               const current = which === 'hourly' ? rateH : rateK;
@@ -196,7 +212,9 @@ export function WorkersList({
                   <div className="pay overview-cell overview-cell-static">
                     <span>€{formatNum(payTotal)}</span>
                     <div className="overview-unit">всего</div>
-                    <div className="overview-sub">часы + км</div>
+                    <div className="overview-sub">
+                      {allExpenses > 0 ? `часы + км + расходы €${formatNum(allExpenses)}` : 'часы + км'}
+                    </div>
                   </div>
                 </div>
                 <div className="grand-total-sub">
@@ -306,6 +324,7 @@ export function WorkersList({
                               кэш{n.cashDeductPercent ? ` −${formatNum(n.cashDeductPercent)}%` : ''}
                             </span>
                           )}
+                          {isPayExpense(n) && <span className="entry-in-pay">в сумме</span>}
                         </div>
                         <div className="entry-time">
                           {workerName(n.workerId)}

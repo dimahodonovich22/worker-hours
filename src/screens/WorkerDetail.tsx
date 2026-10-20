@@ -5,6 +5,7 @@ import {
   entryHours,
   entryPay,
   formatNum,
+  isPayExpense,
   noteEffectiveAmount,
   periodBounds,
   rangeTotal,
@@ -63,10 +64,20 @@ export function WorkerDetail({
     [notes, start, end],
   );
 
+  // Расходы по работе уже входят в сумму к выплате — в итогах заметок их не считаем,
+  // чтобы одна и та же сумма не учитывалась дважды.
+  const expenseNotes = useMemo(
+    () => visibleNotes.filter(isPayExpense).sort((a, b) => (a.date < b.date ? -1 : 1)),
+    [visibleNotes],
+  );
+  const expenses =
+    Math.round(expenseNotes.reduce((s, n) => s + noteEffectiveAmount(n), 0) * 100) / 100;
+
   const noteTotals = useMemo(() => {
     let minus = 0;
     let plus = 0;
     for (const n of visibleNotes) {
+      if (isPayExpense(n)) continue;
       if (n.direction === 'minus') minus += n.amount;
       else plus += noteEffectiveAmount(n);
     }
@@ -78,6 +89,7 @@ export function WorkerDetail({
   }, [visibleNotes]);
 
   const total = rangeTotal(entries, worker, start, end);
+  const payWithExpenses = Math.round((total.pay + expenses) * 100) / 100;
 
   function exportText() {
     const lines = visible
@@ -93,7 +105,14 @@ export function WorkerDetail({
         return `${ddmm(e.date)} ${locs}${lunch}   ${times}/${formatNum(entryHours(e))}/${formatNum(e.km)}км`;
       });
     lines.push('');
-    lines.push(`Итого: ${formatNum(total.hours)} ч / ${formatNum(total.km)} км / €${formatNum(total.pay)}`);
+    if (expenseNotes.length) {
+      lines.push('Расходы по работе:');
+      for (const n of expenseNotes) {
+        lines.push(`${ddmm(n.date)} ${n.description}   €${formatNum(noteEffectiveAmount(n))}`);
+      }
+      lines.push('');
+    }
+    lines.push(`Итого: ${formatNum(total.hours)} ч / ${formatNum(total.km)} км / €${formatNum(payWithExpenses)}`);
     const text = lines.join('\n');
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(
@@ -118,7 +137,12 @@ export function WorkerDetail({
       <div className="totals">
         <div><span>{formatNum(total.hours)}</span> ч</div>
         <div><span>{formatNum(total.km)}</span> км</div>
-        <div className="pay"><span>€{formatNum(total.pay)}</span></div>
+        <div className="pay">
+          <span>€{formatNum(payWithExpenses)}</span>
+          {expenses > 0 && (
+            <small className="totals-extra">вкл. расходы €{formatNum(expenses)}</small>
+          )}
+        </div>
       </div>
 
       {visible.length === 0 ? (
@@ -201,9 +225,10 @@ export function WorkerDetail({
                           кэш{n.cashDeductPercent ? ` −${formatNum(n.cashDeductPercent)}%` : ''}
                         </span>
                       )}
+                      {isPayExpense(n) && <span className="entry-in-pay">в сумме</span>}
                     </div>
                     <div className="entry-time">
-                      {n.direction === 'minus' ? 'я должен' : 'мне должны'}
+                      {isPayExpense(n) ? 'расход по работе' : n.direction === 'minus' ? 'я должен' : 'мне должны'}
                       {n.direction === 'plus' && n.cash && n.cashDeductPercent
                         ? ` · факт €${formatNum(noteEffectiveAmount(n))}`
                         : ''}
@@ -280,7 +305,7 @@ export function WorkerDetail({
               className="sheet-btn"
               onClick={() => {
                 setMenuOpen(false);
-                exportExcel(worker, visible, periodBounds(view));
+                exportExcel(worker, visible, periodBounds(view), expenseNotes);
               }}
             >
               <span className="sheet-btn-icon">📊</span>

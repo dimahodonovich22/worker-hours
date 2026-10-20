@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AppState, Entry, Note, PeriodView, Worker } from './types';
 import { loadState, saveState, uid } from './storage';
-import { currentMonthKey, currentWeekStart, periodBounds, weekEnd, ymd } from './calc';
+import { currentMonthKey, currentWeekStart, isPayExpense, periodBounds, weekEnd, ymd } from './calc';
 import { WorkersList } from './screens/WorkersList';
 import { WorkerDetail } from './screens/WorkerDetail';
 import { EntryForm } from './screens/EntryForm';
@@ -219,6 +219,7 @@ export function App() {
         start={route.start}
         end={route.end}
         label={route.label}
+        expenses={state.notes.filter((n) => n.workerId === worker.id && isPayExpense(n))}
         onBack={() => setRoute({ name: 'worker', workerId: worker.id })}
       />
     );

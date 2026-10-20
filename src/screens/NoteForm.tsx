@@ -25,6 +25,8 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
   const [cashPercent, setCashPercent] = useState<string>(
     existing?.cashDeductPercent ? String(existing.cashDeductPercent) : '',
   );
+  // Для новых заметок «мне должны» по умолчанию считаем расходом по работе.
+  const [addToPay, setAddToPay] = useState<boolean>(existing ? !!existing.addToPay : true);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -44,6 +46,7 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
       photos: photos.length ? photos : undefined,
       cash: isPlus && cash ? true : undefined,
       cashDeductPercent: isPlus && cash && pct > 0 ? pct : undefined,
+      addToPay: isPlus && addToPay ? true : undefined,
     });
   }
 
@@ -101,6 +104,14 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
 
         {direction === 'plus' && (
           <>
+            <label className="field-check">
+              <input
+                type="checkbox"
+                checked={addToPay}
+                onChange={(e) => setAddToPay(e.target.checked)}
+              />
+              <span>Расход по работе — прибавить к сумме к выплате</span>
+            </label>
             <div className="field">
               <span>Способ получения</span>
               <div className="multi-row">
@@ -144,7 +155,7 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Например: заправка для личных нужд на Total"
+            placeholder="Например: парковка в Генте / заправка для личных нужд"
             rows={3}
           />
         </label>
@@ -152,7 +163,11 @@ export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props
         <PhotoPicker photos={photos} onChange={setPhotos} />
 
         <div className="form-hint">
-          Заметки <strong>не добавляются автоматически</strong> в сумму к выплате за работу — они учитываются отдельно. В конце месяца вы увидите два итога.
+          {direction === 'plus' && addToPay ? (
+            <>Эта сумма <strong>прибавится к сумме к выплате</strong> за работу (сверху и в общем итоге) и войдёт в PDF/Excel.</>
+          ) : (
+            <>Эта заметка <strong>не добавляется</strong> в сумму к выплате за работу — она учитывается отдельно в блоке заметок.</>
+          )}
         </div>
 
         {onDelete && (

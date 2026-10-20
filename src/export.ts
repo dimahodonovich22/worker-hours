@@ -1,11 +1,12 @@
 import * as XLSX from 'xlsx';
-import type { Entry, Worker } from './types';
-import { ddmm, entryHours, entryPay } from './calc';
+import type { Entry, Note, Worker } from './types';
+import { ddmm, entryHours, entryPay, noteEffectiveAmount } from './calc';
 
 export function exportExcel(
   worker: Worker,
   entries: Entry[],
   period: { label: string; tag: string },
+  expenses: Note[] = [],
 ): void {
   const sorted = entries.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
 
@@ -13,7 +14,7 @@ export function exportExcel(
   let totalKm = 0;
   let totalPay = 0;
 
-  const rows = sorted.map((e) => {
+  const rows: Record<string, string | number>[] = sorted.map((e) => {
     const hours = entryHours(e);
     const sum = entryPay(e, worker);
     totalHours += hours;
@@ -34,6 +35,16 @@ export function exportExcel(
       'Сумма €': sum,
     };
   });
+
+  // Расходы по работе (парковка, покупки) — отдельными строками, входят в итог.
+  if (expenses.length) {
+    rows.push({ Дата: '', Локация: 'РАСХОДЫ ПО РАБОТЕ', Время: '', Обед: '', Часы: '', Км: '', 'Сумма €': '' });
+    for (const n of expenses) {
+      const amount = noteEffectiveAmount(n);
+      totalPay += amount;
+      rows.push({ Дата: ddmm(n.date), Локация: n.description, Время: '', Обед: '', Часы: '', Км: '', 'Сумма €': amount });
+    }
+  }
 
   totalPay = Math.round(totalPay * 100) / 100;
 

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import type { Entry, Worker } from '../types';
-import { ddmm, entryHours, entryPay, formatNum, rangeTotal } from '../calc';
+import type { Entry, Note, Worker } from '../types';
+import { ddmm, entryHours, entryPay, formatNum, noteEffectiveAmount, rangeTotal } from '../calc';
 
 type Props = {
   worker: Worker;
@@ -8,15 +8,23 @@ type Props = {
   start: string; // YYYY-MM-DD, включительно
   end: string;   // YYYY-MM-DD, включительно
   label: string; // «Октябрь 2026» или «28.09 – 04.10.2026»
+  expenses: Note[]; // расходы по работе этого работника (входят в «К выплате»)
   onBack: () => void;
 };
 
-export function ReportView({ worker, entries, start, end, label, onBack }: Props) {
+export function ReportView({ worker, entries, start, end, label, expenses, onBack }: Props) {
   const visible = entries
     .filter((e) => e.workerId === worker.id && e.date >= start && e.date <= end)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 
   const total = rangeTotal(entries, worker, start, end);
+
+  const visibleExpenses = expenses
+    .filter((n) => n.date >= start && n.date <= end)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const expensesSum =
+    Math.round(visibleExpenses.reduce((s, n) => s + noteEffectiveAmount(n), 0) * 100) / 100;
+  const payWithExpenses = Math.round((total.pay + expensesSum) * 100) / 100;
 
   useEffect(() => {
     document.title = `Отчёт ${worker.name} — ${label}`;
@@ -98,6 +106,33 @@ export function ReportView({ worker, entries, start, end, label, onBack }: Props
           </tfoot>
         </table>
 
+        {visibleExpenses.length > 0 && (
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Расходы по работе</th>
+                <th className="num">Сумма €</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleExpenses.map((n) => (
+                <tr key={n.id}>
+                  <td className="nowrap">{ddmm(n.date)}</td>
+                  <td>{n.description}</td>
+                  <td className="num">{formatNum(noteEffectiveAmount(n))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2}>ИТОГО РАСХОДЫ</td>
+                <td className="num">{formatNum(expensesSum)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        )}
+
         <div className="report-summary">
           <div className="summary-block">
             <div className="summary-label">Всего часов</div>
@@ -109,7 +144,12 @@ export function ReportView({ worker, entries, start, end, label, onBack }: Props
           </div>
           <div className="summary-block accent">
             <div className="summary-label">К выплате</div>
-            <div className="summary-value">€{formatNum(total.pay)}</div>
+            <div className="summary-value">€{formatNum(payWithExpenses)}</div>
+            {expensesSum > 0 && (
+              <div className="summary-note">
+                работа €{formatNum(total.pay)} + расходы €{formatNum(expensesSum)}
+              </div>
+            )}
           </div>
         </div>
 
