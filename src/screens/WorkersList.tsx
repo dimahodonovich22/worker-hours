@@ -118,7 +118,7 @@ export function WorkersList({
   return (
     <div className="screen">
       <header className="topbar">
-        <h1>Работники</h1>
+        <h1>Работники <span className="test-tag">ТЕСТ</span></h1>
         <button className="link" onClick={onAddWorker}>+ Добавить</button>
       </header>
 

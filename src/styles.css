@@ -1141,3 +1141,17 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     margin: 0;
   }
 }
+
+/* Метка тестовой копии приложения */
+.test-tag {
+  display: inline-block;
+  margin-left: 6px;
+  background: #ff9500;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}

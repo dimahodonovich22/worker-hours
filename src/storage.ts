@@ -1,6 +1,8 @@
 import type { AppState } from './types';
 
-const KEY = 'worker-hours-v1';
+// Тестовая копия: свой ключ, чтобы не трогать данные основного приложения
+// (оба живут на одном домене dimahodonovich22.github.io).
+const KEY = 'worker-hours-test-v1';
 
 export function loadState(): AppState {
   try {
