@@ -1,23 +1,24 @@
 import { useMemo, useState } from 'react';
-import type { Entry, Note, Worker } from '../types';
+import type { Entry, Note, PeriodView, Worker } from '../types';
 import {
   ddmm,
   entryHours,
-  entryMonthKey,
   entryPay,
-  formatMonthLabel,
   formatNum,
-  monthTotal,
-  currentMonthKey,
   noteEffectiveAmount,
+  periodBounds,
+  rangeTotal,
 } from '../calc';
 import { exportExcel } from '../export';
+import { PeriodNav } from '../components/PeriodNav';
 
 type Props = {
   worker: Worker;
   entries: Entry[];
   notes: Note[];
   allEntriesForWorker: Entry[];
+  view: PeriodView;
+  onChangeView: (next: PeriodView) => void;
   onBack: () => void;
   onAddEntry: () => void;
   onAddNote: () => void;
@@ -25,13 +26,15 @@ type Props = {
   onEditNote: (id: string) => void;
   onEditWorker: () => void;
   onDeleteEntry: (id: string) => void;
-  onOpenReport: (monthKey: string) => void;
+  onOpenReport: () => void;
 };
 
 export function WorkerDetail({
   worker,
   entries,
   notes,
+  view,
+  onChangeView,
   onBack,
   onAddEntry,
   onAddNote,
@@ -42,31 +45,22 @@ export function WorkerDetail({
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const months = useMemo(() => {
-    const set = new Set([
-      ...entries.map((e) => entryMonthKey(e.date)),
-      ...notes.map((n) => entryMonthKey(n.date)),
-    ]);
-    set.add(currentMonthKey());
-    return Array.from(set).sort().reverse();
-  }, [entries, notes]);
-
-  const [month, setMonth] = useState<string>(() => months[0] ?? currentMonthKey());
+  const { start, end, label } = periodBounds(view);
 
   const visible = useMemo(
     () =>
       entries
-        .filter((e) => entryMonthKey(e.date) === month)
+        .filter((e) => e.date >= start && e.date <= end)
         .sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [entries, month],
+    [entries, start, end],
   );
 
   const visibleNotes = useMemo(
     () =>
       notes
-        .filter((n) => entryMonthKey(n.date) === month)
+        .filter((n) => n.date >= start && n.date <= end)
         .sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [notes, month],
+    [notes, start, end],
   );
 
   const noteTotals = useMemo(() => {
@@ -83,7 +77,7 @@ export function WorkerDetail({
     };
   }, [visibleNotes]);
 
-  const total = monthTotal(entries, worker, month);
+  const total = rangeTotal(entries, worker, start, end);
 
   function exportText() {
     const lines = visible
@@ -119,13 +113,7 @@ export function WorkerDetail({
         <button className="link" onClick={onEditWorker}>⚙</button>
       </header>
 
-      <div className="month-picker">
-        <select value={month} onChange={(e) => setMonth(e.target.value)}>
-          {months.map((m) => (
-            <option key={m} value={m}>{formatMonthLabel(m)}</option>
-          ))}
-        </select>
-      </div>
+      <PeriodNav view={view} onChange={onChangeView} />
 
       <div className="totals">
         <div><span>{formatNum(total.hours)}</span> ч</div>
@@ -179,7 +167,7 @@ export function WorkerDetail({
 
       {(visibleNotes.length > 0 || noteTotals.minus > 0 || noteTotals.plus > 0) && (
         <div className="notes-section">
-          <div className="section-title">Заметки за {formatMonthLabel(month)}</div>
+          <div className="section-title">Заметки за {label}</div>
           <div className="note-totals">
             <div className="note-total minus">
               <div className="note-total-label">Я должен</div>
@@ -274,12 +262,12 @@ export function WorkerDetail({
       {menuOpen && (
         <div className="sheet-backdrop" onClick={() => setMenuOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-title">Экспорт за {formatMonthLabel(month)}</div>
+            <div className="sheet-title">Экспорт за {label}</div>
             <button
               className="sheet-btn"
               onClick={() => {
                 setMenuOpen(false);
-                onOpenReport(month);
+                onOpenReport();
               }}
             >
               <span className="sheet-btn-icon">📄</span>
@@ -292,7 +280,7 @@ export function WorkerDetail({
               className="sheet-btn"
               onClick={() => {
                 setMenuOpen(false);
-                exportExcel(worker, visible, month);
+                exportExcel(worker, visible, periodBounds(view));
               }}
             >
               <span className="sheet-btn-icon">📊</span>

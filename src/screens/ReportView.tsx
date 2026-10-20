@@ -1,35 +1,29 @@
 import { useEffect } from 'react';
 import type { Entry, Worker } from '../types';
-import {
-  ddmm,
-  entryHours,
-  entryMonthKey,
-  entryPay,
-  formatMonthLabel,
-  formatNum,
-  monthTotal,
-} from '../calc';
+import { ddmm, entryHours, entryPay, formatNum, rangeTotal } from '../calc';
 
 type Props = {
   worker: Worker;
   entries: Entry[];
-  monthKey: string;
+  start: string; // YYYY-MM-DD, включительно
+  end: string;   // YYYY-MM-DD, включительно
+  label: string; // «Октябрь 2026» или «28.09 – 04.10.2026»
   onBack: () => void;
 };
 
-export function ReportView({ worker, entries, monthKey, onBack }: Props) {
+export function ReportView({ worker, entries, start, end, label, onBack }: Props) {
   const visible = entries
-    .filter((e) => e.workerId === worker.id && entryMonthKey(e.date) === monthKey)
+    .filter((e) => e.workerId === worker.id && e.date >= start && e.date <= end)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 
-  const total = monthTotal(entries, worker, monthKey);
+  const total = rangeTotal(entries, worker, start, end);
 
   useEffect(() => {
-    document.title = `Отчёт ${worker.name} — ${formatMonthLabel(monthKey)}`;
+    document.title = `Отчёт ${worker.name} — ${label}`;
     return () => {
       document.title = 'Учёт часов';
     };
-  }, [worker.name, monthKey]);
+  }, [worker.name, label]);
 
   function handlePrint() {
     window.print();
@@ -52,7 +46,7 @@ export function ReportView({ worker, entries, monthKey, onBack }: Props) {
         <div className="report-header">
           <div>
             <h1 className="report-title">Отчёт о работе</h1>
-            <div className="report-period">{formatMonthLabel(monthKey)}</div>
+            <div className="report-period">{label}</div>
           </div>
           <div className="report-worker">
             <div className="report-worker-label">Работник</div>

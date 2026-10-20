@@ -44,6 +44,14 @@ export type Note = {
   cashDeductPercent?: number;
 };
 
+// Выбранный период просмотра — общий для главного экрана и экрана работника.
+export type PeriodView = {
+  period: 'month' | 'week';
+  month: string;      // YYYY-MM
+  rangeStart: string; // YYYY-MM-DD
+  rangeEnd: string;   // YYYY-MM-DD
+};
+
 export type AppState = {
   workers: Worker[];
   entries: Entry[];

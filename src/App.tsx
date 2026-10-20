@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { AppState, Entry, Note, Worker } from './types';
+import type { AppState, Entry, Note, PeriodView, Worker } from './types';
 import { loadState, saveState, uid } from './storage';
-import { ymd } from './calc';
+import { currentMonthKey, currentWeekStart, periodBounds, weekEnd, ymd } from './calc';
 import { WorkersList } from './screens/WorkersList';
 import { WorkerDetail } from './screens/WorkerDetail';
 import { EntryForm } from './screens/EntryForm';
@@ -15,11 +15,17 @@ type Route =
   | { name: 'entry'; workerId: string; entryId?: string }
   | { name: 'workerForm'; workerId?: string }
   | { name: 'noteForm'; workerId: string; noteId?: string }
-  | { name: 'report'; workerId: string; monthKey: string };
+  | { name: 'report'; workerId: string; start: string; end: string; label: string };
 
 export function App() {
   const [state, setState] = useState<AppState>(() => loadState());
   const [route, setRoute] = useState<Route>({ name: 'workers' });
+  // Один период на главный экран и экран работника: открыли неделю на главном —
+  // у работника открывается та же неделя, и при возврате назад она сохраняется.
+  const [view, setView] = useState<PeriodView>(() => {
+    const ws = currentWeekStart();
+    return { period: 'month', month: currentMonthKey(), rangeStart: ws, rangeEnd: weekEnd(ws) };
+  });
 
   useEffect(() => {
     saveState(state);
@@ -83,6 +89,8 @@ export function App() {
     return (
       <WorkersList
         state={state}
+        view={view}
+        onChangeView={setView}
         onOpenWorker={(id) => setRoute({ name: 'worker', workerId: id })}
         onAddWorker={() => setRoute({ name: 'workerForm' })}
         onImport={importState}
@@ -103,6 +111,8 @@ export function App() {
         worker={worker}
         entries={state.entries.filter((e) => e.workerId === worker.id)}
         notes={state.notes.filter((n) => n.workerId === worker.id)}
+        view={view}
+        onChangeView={setView}
         onBack={() => setRoute({ name: 'workers' })}
         onAddEntry={() => setRoute({ name: 'entry', workerId: worker.id })}
         onAddNote={() => setRoute({ name: 'noteForm', workerId: worker.id })}
@@ -111,7 +121,10 @@ export function App() {
         onEditWorker={() => setRoute({ name: 'workerForm', workerId: worker.id })}
         onDeleteEntry={deleteEntry}
         allEntriesForWorker={state.entries.filter((e) => e.workerId === worker.id)}
-        onOpenReport={(monthKey) => setRoute({ name: 'report', workerId: worker.id, monthKey })}
+        onOpenReport={() => {
+          const { start, end, label } = periodBounds(view);
+          setRoute({ name: 'report', workerId: worker.id, start, end, label });
+        }}
       />
     );
   }
@@ -203,7 +216,9 @@ export function App() {
       <ReportView
         worker={worker}
         entries={state.entries}
-        monthKey={route.monthKey}
+        start={route.start}
+        end={route.end}
+        label={route.label}
         onBack={() => setRoute({ name: 'worker', workerId: worker.id })}
       />
     );

@@ -1,4 +1,4 @@
-import type { Entry, Worker } from './types';
+import type { Entry, PeriodView, Worker } from './types';
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -116,6 +116,31 @@ export function shiftDate(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + days);
   return ymd(d);
+}
+
+/** Границы выбранного периода (включительно), подпись и метка для имени файла. */
+export function periodBounds(view: PeriodView): {
+  start: string;
+  end: string;
+  label: string;
+  tag: string;
+} {
+  if (view.period === 'week') {
+    return {
+      start: view.rangeStart,
+      end: view.rangeEnd,
+      label: formatRangeLabel(view.rangeStart, view.rangeEnd),
+      tag: `${view.rangeStart}_${view.rangeEnd}`,
+    };
+  }
+  const [y, m] = view.month.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  return {
+    start: `${view.month}-01`,
+    end: `${view.month}-${String(lastDay).padStart(2, '0')}`,
+    label: formatMonthLabel(view.month),
+    tag: view.month,
+  };
 }
 
 export function rangeTotal(

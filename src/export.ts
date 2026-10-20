@@ -1,8 +1,12 @@
 import * as XLSX from 'xlsx';
 import type { Entry, Worker } from './types';
-import { ddmm, entryHours, entryPay, formatMonthLabel } from './calc';
+import { ddmm, entryHours, entryPay } from './calc';
 
-export function exportExcel(worker: Worker, entries: Entry[], monthKey: string): void {
+export function exportExcel(
+  worker: Worker,
+  entries: Entry[],
+  period: { label: string; tag: string },
+): void {
   const sorted = entries.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
 
   let totalHours = 0;
@@ -64,10 +68,10 @@ export function exportExcel(worker: Worker, entries: Entry[], monthKey: string):
   });
 
   const wb = XLSX.utils.book_new();
-  const sheetName = formatMonthLabel(monthKey).slice(0, 31);
+  const sheetName = period.label.slice(0, 31);
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-  const filename = `${sanitize(worker.name)}_${monthKey}.xlsx`;
+  const filename = `${sanitize(worker.name)}_${period.tag}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
