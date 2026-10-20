@@ -6,13 +6,14 @@ import { PhotoPicker } from '../components/PhotoPicker';
 type Props = {
   worker: Worker;
   existing?: Note;
+  initialDate?: string; // дата новой записи (при нажатии на день в ленте)
   onCancel: () => void;
   onSave: (data: Omit<Note, 'id' | 'workerId'>) => void;
   onDelete?: () => void;
 };
 
-export function NoteForm({ worker, existing, onCancel, onSave, onDelete }: Props) {
-  const [date, setDate] = useState(existing?.date ?? ymd(new Date()));
+export function NoteForm({ worker, existing, initialDate, onCancel, onSave, onDelete }: Props) {
+  const [date, setDate] = useState(existing?.date ?? initialDate ?? ymd(new Date()));
   const [direction, setDirection] = useState<'minus' | 'plus'>(
     existing?.direction ?? 'minus',
   );

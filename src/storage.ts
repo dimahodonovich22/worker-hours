@@ -14,6 +14,8 @@ export function loadState(): AppState {
       entries: parsed.entries ?? [],
       notes: parsed.notes ?? [],
       overviewRates: parsed.overviewRates,
+      selfWorkerId: parsed.selfWorkerId,
+      feedFilter: parsed.feedFilter,
     };
   } catch {
     return { workers: [], entries: [], notes: [] };

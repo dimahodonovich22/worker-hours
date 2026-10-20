@@ -8,6 +8,7 @@ type Props = {
   existing?: Entry;
   knownLocations: string[];
   defaults: { hourly: number; perKm: number; km: number };
+  initialDate?: string; // дата новой записи (при нажатии на день в ленте)
   onCancel: () => void;
   onSave: (data: Omit<Entry, 'id' | 'workerId'>) => void;
   onDuplicate?: () => void;
@@ -17,6 +18,7 @@ type Props = {
 export function EntryForm({
   worker,
   existing,
+  initialDate,
   knownLocations,
   defaults,
   onCancel,
@@ -24,7 +26,7 @@ export function EntryForm({
   onDuplicate,
   onDelete,
 }: Props) {
-  const [date, setDate] = useState(existing?.date ?? ymd(new Date()));
+  const [date, setDate] = useState(existing?.date ?? initialDate ?? ymd(new Date()));
   const [location, setLocation] = useState(existing?.location ?? '');
   const [start, setStart] = useState(existing?.start ?? '08:00');
   const [end, setEnd] = useState(existing?.end ?? '16:30');

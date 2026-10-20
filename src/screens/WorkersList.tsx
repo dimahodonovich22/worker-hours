@@ -9,6 +9,7 @@ import {
   rangeTotal,
 } from '../calc';
 import { PeriodNav } from '../components/PeriodNav';
+import { downloadBackup, readBackup } from '../backup';
 
 function plural(n: number, one: string, few: string, many: string): string {
   const m10 = n % 10;
@@ -34,6 +35,7 @@ type Props = {
   onImport: (state: AppState) => void;
   onSetOverviewRates: (rates: { hourly: number; perKm: number }) => void;
   onOpenNote: (workerId: string, noteId: string) => void;
+  onBack: () => void;
 };
 
 export function WorkersList({
@@ -45,6 +47,7 @@ export function WorkersList({
   onImport,
   onSetOverviewRates,
   onOpenNote,
+  onBack,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [notesModal, setNotesModal] = useState<null | 'minus' | 'plus' | 'net'>(null);
@@ -88,37 +91,12 @@ export function WorkersList({
     };
   })();
 
-  function exportBackup() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `worker-hours-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function importBackup(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result));
-        if (Array.isArray(parsed.workers) && Array.isArray(parsed.entries)) {
-          if (confirm('Заменить текущие данные импортом?')) onImport(parsed);
-        } else {
-          alert('Неверный формат файла');
-        }
-      } catch {
-        alert('Не удалось прочитать файл');
-      }
-    };
-    reader.readAsText(file);
-  }
 
   return (
     <div className="screen">
       <header className="topbar">
-        <h1>Работники <span className="test-tag">ТЕСТ</span></h1>
+        <button className="link" onClick={onBack}>‹ Назад</button>
+        <h1>Сводка <span className="test-tag">ТЕСТ</span></h1>
         <button className="link" onClick={onAddWorker}>+ Добавить</button>
       </header>
 
@@ -267,7 +245,7 @@ export function WorkersList({
       )}
 
       <footer className="footer-actions">
-        <button className="ghost" onClick={exportBackup}>Скачать backup</button>
+        <button className="ghost" onClick={() => downloadBackup(state)}>Скачать backup</button>
         <button className="ghost" onClick={() => fileRef.current?.click()}>Импорт</button>
         <input
           ref={fileRef}
@@ -276,7 +254,7 @@ export function WorkersList({
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) importBackup(f);
+            if (f) readBackup(f, onImport);
             e.target.value = '';
           }}
         />

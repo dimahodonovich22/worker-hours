@@ -1,27 +1,42 @@
 import { useEffect, useState } from 'react';
-import type { AppState, Entry, Note, PeriodView, Worker } from './types';
+import type { AppState, Entry, FeedFilter, Note, PeriodView, Worker } from './types';
 import { loadState, saveState, uid } from './storage';
 import { currentMonthKey, currentWeekStart, isPayExpense, periodBounds, weekEnd, ymd } from './calc';
+import { CalendarFeed } from './screens/CalendarFeed';
 import { WorkersList } from './screens/WorkersList';
 import { WorkerDetail } from './screens/WorkerDetail';
 import { EntryForm } from './screens/EntryForm';
 import { WorkerForm } from './screens/WorkerForm';
 import { ReportView } from './screens/ReportView';
 import { NoteForm } from './screens/NoteForm';
+import type { PeriodRequest } from './components/feed/MonthSection';
 
 type Route =
-  | { name: 'workers' }
+  | { name: 'feed' }
+  | { name: 'summary' }
   | { name: 'worker'; workerId: string }
-  | { name: 'entry'; workerId: string; entryId?: string }
+  | { name: 'entry'; workerId: string; entryId?: string; date?: string }
   | { name: 'workerForm'; workerId?: string }
-  | { name: 'noteForm'; workerId: string; noteId?: string }
+  | { name: 'noteForm'; workerId: string; noteId?: string; date?: string }
   | { name: 'report'; workerId: string; start: string; end: string; label: string };
+
+/** Если экран ссылается на удалённого работника — возвращаемся на главный. */
+function BackHome({ onHome }: { onHome: () => void }) {
+  useEffect(onHome, [onHome]);
+  return null;
+}
 
 export function App() {
   const [state, setState] = useState<AppState>(() => loadState());
-  const [route, setRoute] = useState<Route>({ name: 'workers' });
-  // Один период на главный экран и экран работника: открыли неделю на главном —
-  // у работника открывается та же неделя, и при возврате назад она сохраняется.
+  // Стек экранов: «Назад» и «Сохранить» возвращают туда, откуда пришли (в ленту или к работнику).
+  const [stack, setStack] = useState<Route[]>([{ name: 'feed' }]);
+  const route = stack[stack.length - 1];
+  const push = (r: Route) => setStack((s) => [...s, r]);
+  const pop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
+  const replace = (r: Route) => setStack((s) => [...s.slice(0, -1), r]);
+  const [goHome] = useState(() => () => setStack([{ name: 'feed' }]));
+
+  // Один период на сводку и экран работника.
   const [view, setView] = useState<PeriodView>(() => {
     const ws = currentWeekStart();
     return { period: 'month', month: currentMonthKey(), rangeStart: ws, rangeEnd: weekEnd(ws) };
@@ -43,9 +58,13 @@ export function App() {
 
   function deleteWorker(id: string) {
     setState((s) => ({
+      ...s,
       workers: s.workers.filter((w) => w.id !== id),
       entries: s.entries.filter((e) => e.workerId !== id),
       notes: s.notes.filter((n) => n.workerId !== id),
+      selfWorkerId: s.selfWorkerId === id ? undefined : s.selfWorkerId,
+      feedFilter:
+        s.feedFilter?.kind === 'worker' && s.feedFilter.workerId === id ? { kind: 'all' } : s.feedFilter,
     }));
   }
 
@@ -79,33 +98,69 @@ export function App() {
 
   function importState(next: AppState) {
     setState(next);
+    goHome();
   }
 
   function setOverviewRates(rates: { hourly: number; perKm: number }) {
     setState((s) => ({ ...s, overviewRates: rates }));
   }
 
-  if (route.name === 'workers') {
+  function setFeedFilter(f: FeedFilter) {
+    setState((s) => ({ ...s, feedFilter: f }));
+  }
+
+  function setSelf(workerId: string) {
+    setState((s) => ({ ...s, selfWorkerId: workerId, feedFilter: { kind: 'me' } }));
+  }
+
+  // Из ленты: открыть работника сразу на нужной неделе или месяце.
+  function openWorkerPeriod(workerId: string, req: PeriodRequest) {
+    setView((v) =>
+      req.kind === 'week'
+        ? { ...v, period: 'week', rangeStart: req.start, rangeEnd: req.end }
+        : { ...v, period: 'month', month: req.start.slice(0, 7) },
+    );
+    push({ name: 'worker', workerId });
+  }
+
+  if (route.name === 'feed') {
+    return (
+      <CalendarFeed
+        state={state}
+        onSetFilter={setFeedFilter}
+        onSetSelf={setSelf}
+        onAddEntry={(workerId, date) => push({ name: 'entry', workerId, date })}
+        onEditEntry={(e) => push({ name: 'entry', workerId: e.workerId, entryId: e.id })}
+        onAddNote={(workerId, date) => push({ name: 'noteForm', workerId, date })}
+        onEditNote={(n) => push({ name: 'noteForm', workerId: n.workerId, noteId: n.id })}
+        onOpenWorkerPeriod={openWorkerPeriod}
+        onAddWorker={() => push({ name: 'workerForm' })}
+        onEditWorker={(id) => push({ name: 'workerForm', workerId: id })}
+        onOpenSummary={() => push({ name: 'summary' })}
+        onImport={importState}
+      />
+    );
+  }
+
+  if (route.name === 'summary') {
     return (
       <WorkersList
         state={state}
         view={view}
         onChangeView={setView}
-        onOpenWorker={(id) => setRoute({ name: 'worker', workerId: id })}
-        onAddWorker={() => setRoute({ name: 'workerForm' })}
+        onOpenWorker={(id) => push({ name: 'worker', workerId: id })}
+        onAddWorker={() => push({ name: 'workerForm' })}
         onImport={importState}
         onSetOverviewRates={setOverviewRates}
-        onOpenNote={(workerId, noteId) => setRoute({ name: 'noteForm', workerId, noteId })}
+        onOpenNote={(workerId, noteId) => push({ name: 'noteForm', workerId, noteId })}
+        onBack={pop}
       />
     );
   }
 
   if (route.name === 'worker') {
     const worker = state.workers.find((w) => w.id === route.workerId);
-    if (!worker) {
-      setRoute({ name: 'workers' });
-      return null;
-    }
+    if (!worker) return <BackHome onHome={goHome} />;
     return (
       <WorkerDetail
         worker={worker}
@@ -113,17 +168,17 @@ export function App() {
         notes={state.notes.filter((n) => n.workerId === worker.id)}
         view={view}
         onChangeView={setView}
-        onBack={() => setRoute({ name: 'workers' })}
-        onAddEntry={() => setRoute({ name: 'entry', workerId: worker.id })}
-        onAddNote={() => setRoute({ name: 'noteForm', workerId: worker.id })}
-        onEditEntry={(eid) => setRoute({ name: 'entry', workerId: worker.id, entryId: eid })}
-        onEditNote={(nid) => setRoute({ name: 'noteForm', workerId: worker.id, noteId: nid })}
-        onEditWorker={() => setRoute({ name: 'workerForm', workerId: worker.id })}
+        onBack={pop}
+        onAddEntry={() => push({ name: 'entry', workerId: worker.id })}
+        onAddNote={() => push({ name: 'noteForm', workerId: worker.id })}
+        onEditEntry={(eid) => push({ name: 'entry', workerId: worker.id, entryId: eid })}
+        onEditNote={(nid) => push({ name: 'noteForm', workerId: worker.id, noteId: nid })}
+        onEditWorker={() => push({ name: 'workerForm', workerId: worker.id })}
         onDeleteEntry={deleteEntry}
         allEntriesForWorker={state.entries.filter((e) => e.workerId === worker.id)}
         onOpenReport={() => {
           const { start, end, label } = periodBounds(view);
-          setRoute({ name: 'report', workerId: worker.id, start, end, label });
+          push({ name: 'report', workerId: worker.id, start, end, label });
         }}
       />
     );
@@ -131,26 +186,24 @@ export function App() {
 
   if (route.name === 'noteForm') {
     const worker = state.workers.find((w) => w.id === route.workerId);
-    if (!worker) {
-      setRoute({ name: 'workers' });
-      return null;
-    }
+    if (!worker) return <BackHome onHome={goHome} />;
     const existing = route.noteId ? state.notes.find((n) => n.id === route.noteId) : undefined;
     return (
       <NoteForm
         key={existing?.id ?? 'new'}
         worker={worker}
         existing={existing}
-        onCancel={() => setRoute({ name: 'worker', workerId: worker.id })}
+        initialDate={route.date}
+        onCancel={pop}
         onSave={(data) => {
           upsertNote({ id: existing?.id ?? uid(), workerId: worker.id, ...data });
-          setRoute({ name: 'worker', workerId: worker.id });
+          pop();
         }}
         onDelete={
           existing
             ? () => {
                 deleteNote(existing.id);
-                setRoute({ name: 'worker', workerId: worker.id });
+                pop();
               }
             : undefined
         }
@@ -159,7 +212,8 @@ export function App() {
   }
 
   if (route.name === 'entry') {
-    const worker = state.workers.find((w) => w.id === route.workerId)!;
+    const worker = state.workers.find((w) => w.id === route.workerId);
+    if (!worker) return <BackHome onHome={goHome} />;
     const existing = route.entryId ? state.entries.find((e) => e.id === route.entryId) : undefined;
     const lastForWorker = state.entries
       .filter((e) => e.workerId === worker.id)
@@ -174,23 +228,20 @@ export function App() {
         key={existing?.id ?? 'new'}
         worker={worker}
         existing={existing}
+        initialDate={route.date}
         knownLocations={Array.from(new Set(state.entries.map((e) => e.location).filter(Boolean)))}
         defaults={defaults}
-        onCancel={() => setRoute({ name: 'worker', workerId: worker.id })}
+        onCancel={pop}
         onSave={(data) => {
           upsertEntry({ id: existing?.id ?? uid(), workerId: worker.id, ...data });
-          setRoute({ name: 'worker', workerId: worker.id });
+          pop();
         }}
         onDuplicate={
           existing
             ? () => {
                 const copyId = uid();
-                upsertEntry({
-                  ...existing,
-                  id: copyId,
-                  date: ymd(new Date()),
-                });
-                setRoute({ name: 'entry', workerId: worker.id, entryId: copyId });
+                upsertEntry({ ...existing, id: copyId, date: ymd(new Date()) });
+                replace({ name: 'entry', workerId: worker.id, entryId: copyId });
               }
             : undefined
         }
@@ -198,7 +249,7 @@ export function App() {
           existing
             ? () => {
                 deleteEntry(existing.id);
-                setRoute({ name: 'worker', workerId: worker.id });
+                pop();
               }
             : undefined
         }
@@ -208,10 +259,7 @@ export function App() {
 
   if (route.name === 'report') {
     const worker = state.workers.find((w) => w.id === route.workerId);
-    if (!worker) {
-      setRoute({ name: 'workers' });
-      return null;
-    }
+    if (!worker) return <BackHome onHome={goHome} />;
     return (
       <ReportView
         worker={worker}
@@ -220,7 +268,7 @@ export function App() {
         end={route.end}
         label={route.label}
         expenses={state.notes.filter((n) => n.workerId === worker.id && isPayExpense(n))}
-        onBack={() => setRoute({ name: 'worker', workerId: worker.id })}
+        onBack={pop}
       />
     );
   }
@@ -230,21 +278,16 @@ export function App() {
     return (
       <WorkerForm
         existing={existing}
-        onCancel={() =>
-          existing
-            ? setRoute({ name: 'worker', workerId: existing.id })
-            : setRoute({ name: 'workers' })
-        }
+        onCancel={pop}
         onSave={(data) => {
-          const w: Worker = { id: existing?.id ?? uid(), ...data };
-          upsertWorker(w);
-          setRoute({ name: 'worker', workerId: w.id });
+          upsertWorker({ id: existing?.id ?? uid(), ...data });
+          pop();
         }}
         onDelete={
           existing
             ? () => {
                 deleteWorker(existing.id);
-                setRoute({ name: 'workers' });
+                goHome();
               }
             : undefined
         }

@@ -55,6 +55,12 @@ export type PeriodView = {
   rangeEnd: string;   // YYYY-MM-DD
 };
 
+// Чьи часы показывать на главном экране (ленте месяцев).
+export type FeedFilter =
+  | { kind: 'me' }
+  | { kind: 'all' }
+  | { kind: 'worker'; workerId: string };
+
 export type AppState = {
   workers: Worker[];
   entries: Entry[];
@@ -64,4 +70,8 @@ export type AppState = {
     hourly: number;
     perKm: number;
   };
+  // Кто из работников — сам пользователь (для режима «Мои часы»).
+  selfWorkerId?: string;
+  // Последний выбранный режим ленты.
+  feedFilter?: FeedFilter;
 };
