@@ -66,7 +66,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: (u: Session) => void }
         <button className="primary" type="submit" disabled={busy || !login.trim() || !password}>
           {busy ? 'Вход…' : 'Войти'}
         </button>
-        <div className="auth-hint">Нет пароля или забыли его? Попросите у Дмитрия ссылку для входа.</div>
+        <div className="auth-hint">Нет пароля или забыли его? Попросите у Романа ссылку для входа.</div>
       </form>
     </AuthLayout>
   );
