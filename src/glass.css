@@ -617,26 +617,16 @@ button.danger {
   color: var(--accent);
 }
 
-/* ---------- Способ подсчёта суммы (окно итога недели / месяца) ---------- */
-/* Зелёные суммы — по ставкам в записях, синие — по ставке фактуры */
-.feed-sum.invoice,
-.sum-pay.invoice,
-.period-total b.invoice {
+/* ---------- Ставка фактуры (окно итога недели / месяца) ---------- */
+/* Суммы в ленте считаются по ставке фактуры — синие */
+.feed-sum,
+.sum-pay,
+.period-total b,
+.day-item-side small {
   color: var(--accent);
 }
-.pay-mode-switch {
-  margin: 0 0 2px;
-}
-.period-total.invoice {
+.period-total {
   background: rgba(0, 104, 224, 0.12);
-}
-.pay-mode-switch .period-tab {
-  font-size: 13px;
-  padding: 9px 6px;
-  color: var(--muted);
-}
-.pay-mode-switch .period-tab.on {
-  color: var(--text);
 }
 .pay-rates {
   display: flex;

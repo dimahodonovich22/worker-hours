@@ -55,8 +55,6 @@ export type PeriodView = {
   rangeEnd: string;   // YYYY-MM-DD
 };
 
-export type PayMode = 'entries' | 'invoice';
-
 // Чьи часы показывать на главном экране (ленте месяцев).
 export type FeedFilter =
   | { kind: 'me' }
@@ -76,7 +74,4 @@ export type AppState = {
   selfWorkerId?: string;
   // Последний выбранный режим ленты.
   feedFilter?: FeedFilter;
-  // Как считать суммы недель и месяцев в ленте: по ставкам в записях
-  // (сколько получает каждый) или по ставке фактуры overviewRates (одна для всех).
-  feedPayMode?: PayMode;
 };

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { Entry, FeedFilter, Note, PayMode, Worker } from '../../types';
+import type { Entry, FeedFilter, Note, Worker } from '../../types';
 import { Icon } from '../Icon';
-import { entryHours, entryPay, formatNum, isPayExpense, noteEffectiveAmount } from '../../calc';
-import { entryLocations, weekdayIndex, type DayTotals, type Rates } from '../../feedModel';
+import { entryHours, formatNum, isPayExpense, noteEffectiveAmount } from '../../calc';
+import { entryInvoicePay, entryLocations, weekdayIndex, type DayTotals, type Rates } from '../../feedModel';
 import type { PeriodRequest } from './MonthSection';
 
 const WEEKDAYS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
@@ -159,6 +159,7 @@ type DayProps = {
   notes: Note[];
   workersById: Map<string, Worker>;
   showNames: boolean;
+  rates: Rates; // ставка фактуры — сумма записи считается по ней
   onEditEntry: (e: Entry) => void;
   onEditNote: (n: Note) => void;
   onAddEntry: () => void;
@@ -175,7 +176,6 @@ export function DaySheet(p: DayProps) {
     <Sheet title={title} onClose={p.onClose}>
       <div className="sheet-list">
         {p.entries.map((e) => {
-          const w = p.workersById.get(e.workerId) ?? { id: e.workerId, name: '' };
           const times = [`${e.start}–${e.end}`, ...(e.extraSegments?.map((s) => `${s.start}–${s.end}`) ?? [])].join(' · ');
           return (
             <button key={e.id} className="day-item" onClick={() => p.onEditEntry(e)}>
@@ -190,7 +190,7 @@ export function DaySheet(p: DayProps) {
               </span>
               <span className="day-item-side">
                 <b>{formatNum(entryHours(e))} ч</b>
-                <small>€{formatNum(entryPay(e, w))}</small>
+                <small>€{formatNum(entryInvoicePay(e, p.rates))}</small>
               </span>
             </button>
           );
@@ -232,9 +232,7 @@ type PeriodProps = {
   rows: { worker: Worker; t: DayTotals }[];
   total: DayTotals;
   team: boolean; // режим «Все работники»
-  payMode: PayMode;
   rates: Rates;
-  onSetPayMode: (m: PayMode) => void;
   onEditRate: (which: 'hourly' | 'perKm') => void;
   onOpenWorker: (workerId: string) => void;
   onClose: () => void;
@@ -242,48 +240,25 @@ type PeriodProps = {
 
 export function PeriodSheet(p: PeriodProps) {
   const vals = (t: DayTotals) => `${formatNum(t.hours)} ч · ${formatNum(t.km)} км`;
-  const invoice = p.payMode === 'invoice';
   return (
     <Sheet title={p.req.title} onClose={p.onClose}>
-      {/* Как считать сумму — выбор запоминается и меняет все суммы недель и месяцев в ленте */}
-      <div className="period-switch pay-mode-switch" role="tablist" aria-label="Как считать сумму">
-        <button
-          role="tab"
-          aria-selected={!invoice}
-          className={`period-tab ${!invoice ? 'on' : ''}`}
-          onClick={() => p.onSetPayMode('entries')}
-        >
-          По ставкам в записях
+      {/* Все суммы в ленте — по ставке фактуры; её можно изменить здесь */}
+      <div className="pay-rates">
+        <span>Ставка фактуры:</span>
+        <button className="pay-rate" onClick={() => p.onEditRate('hourly')}>
+          {p.rates.hourly ? `€${formatNum(p.rates.hourly)}/ч` : 'задать €/ч'}
+          <Icon name="pencil" size={13} />
         </button>
-        <button
-          role="tab"
-          aria-selected={invoice}
-          className={`period-tab ${invoice ? 'on' : ''}`}
-          onClick={() => p.onSetPayMode('invoice')}
-        >
-          По ставке фактуры
+        <button className="pay-rate" onClick={() => p.onEditRate('perKm')}>
+          {p.rates.perKm ? `€${formatNum(p.rates.perKm)}/км` : 'задать €/км'}
+          <Icon name="pencil" size={13} />
         </button>
       </div>
-      {invoice ? (
-        <div className="pay-rates">
-          <span>Ставка фактуры:</span>
-          <button className="pay-rate" onClick={() => p.onEditRate('hourly')}>
-            {p.rates.hourly ? `€${formatNum(p.rates.hourly)}/ч` : 'задать €/ч'}
-            <Icon name="pencil" size={13} />
-          </button>
-          <button className="pay-rate" onClick={() => p.onEditRate('perKm')}>
-            {p.rates.perKm ? `€${formatNum(p.rates.perKm)}/км` : 'задать €/км'}
-            <Icon name="pencil" size={13} />
-          </button>
-        </div>
-      ) : (
-        <div className="feed-sheet-hint">Каждая запись — по её собственной ставке: столько получает каждый.</div>
-      )}
       {p.team && (
-        <div className={`period-total${invoice ? ' invoice' : ''}`}>
+        <div className="period-total">
           <span>Вся команда</span>
           <span>
-            {vals(p.total)} · <b className={invoice ? 'invoice' : undefined}>€{formatNum(p.total.pay)}</b>
+            {vals(p.total)} · <b>€{formatNum(p.total.pay)}</b>
           </span>
         </div>
       )}
@@ -295,7 +270,7 @@ export function PeriodSheet(p: PeriodProps) {
               {vals(t)}
               {t.expenses > 0 && <small> · расходы €{formatNum(t.expenses)}</small>}
             </span>
-            <span className={`sum-pay${invoice ? ' invoice' : ''}`}>€{formatNum(t.pay)} ›</span>
+            <span className="sum-pay">€{formatNum(t.pay)} ›</span>
           </button>
         ))}
         {p.rows.length === 0 && <div className="feed-sheet-hint">За этот период записей нет.</div>}

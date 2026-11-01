@@ -1,13 +1,13 @@
 import { memo, useMemo } from 'react';
-import type { Entry, Note, PayMode, Worker } from '../../types';
+import type { Entry, Note, Worker } from '../../types';
 import { Icon } from '../Icon';
 import { ddmm, entryHours, formatNum, noteEffectiveAmount } from '../../calc';
 import {
-  applyPayMode,
   MONTHS_NOM,
   WEEKDAYS,
   daysOfRange,
   entryLocations,
+  invoiceTotals,
   isoWeek,
   monthWeeks,
   sumDays,
@@ -32,8 +32,7 @@ type Props = {
   today: string;
   isLastMonth: boolean; // самый новый месяц ленты — его последнюю неделю подытоживаем здесь
   lastWeekStart: string; // недели позже этой (будущие) не показываем
-  payMode: PayMode; // как считать суммы недель и месяца
-  rates: Rates;     // ставка фактуры (для payMode = 'invoice')
+  rates: Rates; // ставка фактуры — по ней считаются суммы недель и месяца
   onDay: (date: string) => void;
   onPeriod: (req: PeriodRequest) => void;
 };
@@ -53,7 +52,6 @@ export const MonthSection = memo(function MonthSection({
   today,
   isLastMonth,
   lastWeekStart,
-  payMode,
   rates,
   onDay,
   onPeriod,
@@ -63,8 +61,7 @@ export const MonthSection = memo(function MonthSection({
   const [y, m] = monthKey.split('-').map(Number);
   const title = `${MONTHS_NOM[m - 1]} ${y}`;
   // Итог месяца — только дни этого месяца (неделя на стыке делится, без дублей).
-  const monthTotal = applyPayMode(sumDays(monthDays, entriesByDate, notesByDate, workersById), payMode, rates);
-  const sumClass = `feed-sum${payMode === 'invoice' ? ' invoice' : ''}`;
+  const monthTotal = invoiceTotals(sumDays(monthDays, entriesByDate, notesByDate, workersById), rates);
 
   return (
     <section className="feed-month" id={`month-${monthKey}`}>
@@ -75,7 +72,7 @@ export const MonthSection = memo(function MonthSection({
         }
       >
         <span className="feed-month-title">{title}</span>
-        <span className={sumClass}>{totalsLabel(monthTotal)}</span>
+        <span className="feed-sum">{totalsLabel(monthTotal)}</span>
       </button>
 
       {/* Недели — новые сверху, прошлые ниже */}
@@ -94,9 +91,8 @@ export const MonthSection = memo(function MonthSection({
           // (или в самом новом месяце, если неделя уходит в будущий месяц).
           const showTotals = p.hasWeekEnd || (isLastMonth && i === parts.length - 1);
           const weekTotal = showTotals
-            ? applyPayMode(
+            ? invoiceTotals(
                 sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById),
-                payMode,
                 rates,
               )
             : null;
@@ -118,7 +114,7 @@ export const MonthSection = memo(function MonthSection({
                   <span className="feed-week-range">{range}</span>
                 </span>
                 {weekTotal ? (
-                  <span className={sumClass}>{totalsLabel(weekTotal)}</span>
+                  <span className="feed-sum">{totalsLabel(weekTotal)}</span>
                 ) : (
                   <span className="feed-week-cont">итог выше ↑</span>
                 )}
@@ -175,8 +171,9 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
         )}
         {entries.map((e) => (
           <span className="feed-line" key={e.id}>
+            {/* Длинное название сокращается «…», имя работника видно всегда */}
             <span className="feed-obj">
-              {entryLocations(e)}
+              <span className="feed-loc">{entryLocations(e)}</span>
               {who(e.workerId)}
             </span>
             <span className="feed-km">{e.km ? `${formatNum(e.km)} км` : ''}</span>
@@ -187,7 +184,7 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
           <span className={`feed-note ${n.direction}`} key={n.id}>
             <span className="feed-obj">
               <Icon name="note" size={12} className="feed-note-icon" />
-              {n.description}
+              <span className="feed-loc">{n.description}</span>
               {who(n.workerId)}
             </span>
             <span className="feed-note-amt">

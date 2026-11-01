@@ -240,7 +240,11 @@ html { overflow-anchor: none; }
 }
 .feed-obj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .feed-who { color: var(--muted); }
-.feed-obj { flex: 1; }
+.feed-obj { flex: 1; display: flex; align-items: baseline; }
+/* Сокращается только название; имя работника и иконка не сжимаются */
+.feed-loc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-who,
+.feed-note-icon { flex-shrink: 0; white-space: pre; }
 .feed-km {
   flex-shrink: 0;
   width: 52px;
