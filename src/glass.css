@@ -229,8 +229,13 @@ button.ghost,
 .feed-day-empty {
   color: rgba(60, 60, 67, 0.6);
 }
+/* Локация — полужирная: заметнее, чем раньше, но легче дня недели (Пн, Вт — жирные) */
+.feed-line .feed-obj {
+  font-weight: 500;
+}
 .feed-who {
   color: var(--muted);
+  font-weight: 400;
 }
 .feed-note-icon {
   vertical-align: -1px;
