@@ -32,7 +32,7 @@ type Props = {
   today: string;
   isLastMonth: boolean; // самый новый месяц ленты — его последнюю неделю подытоживаем здесь
   lastWeekStart: string; // недели позже этой (будущие) не показываем
-  rates: Rates; // ставка фактуры — по ней считаются суммы недель и месяца
+  rates: Rates | null; // ставка фактуры (администратор); null — суммы по ставкам в записях (работник)
   onDay: (date: string) => void;
   onPeriod: (req: PeriodRequest) => void;
 };
@@ -61,7 +61,8 @@ export const MonthSection = memo(function MonthSection({
   const [y, m] = monthKey.split('-').map(Number);
   const title = `${MONTHS_NOM[m - 1]} ${y}`;
   // Итог месяца — только дни этого месяца (неделя на стыке делится, без дублей).
-  const monthTotal = invoiceTotals(sumDays(monthDays, entriesByDate, notesByDate, workersById), rates);
+  const withRates = (t: DayTotals) => (rates ? invoiceTotals(t, rates) : t);
+  const monthTotal = withRates(sumDays(monthDays, entriesByDate, notesByDate, workersById));
 
   return (
     <section className="feed-month" id={`month-${monthKey}`}>
@@ -91,10 +92,7 @@ export const MonthSection = memo(function MonthSection({
           // (или в самом новом месяце, если неделя уходит в будущий месяц).
           const showTotals = p.hasWeekEnd || (isLastMonth && i === parts.length - 1);
           const weekTotal = showTotals
-            ? invoiceTotals(
-                sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById),
-                rates,
-              )
+            ? withRates(sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById))
             : null;
           return (
             <div className="feed-week" key={p.weekStart}>

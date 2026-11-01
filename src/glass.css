@@ -711,3 +711,126 @@ button.danger {
     display: none;
   }
 }
+
+/* ---------- Вход и приглашение ---------- */
+
+.auth {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 24px);
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  text-align: center;
+}
+.auth-icon {
+  align-self: center;
+  border-radius: 16px;
+  box-shadow: var(--lift-sm);
+}
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.auth-form {
+  text-align: left;
+  padding-top: 0;
+}
+.auth-form .primary {
+  margin-top: 4px;
+}
+.auth-error {
+  background: rgba(229, 53, 43, 0.1);
+  color: var(--owed);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+.auth-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+.auth-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.auth-welcome span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.auth-welcome b {
+  color: var(--text);
+}
+
+/* Работник: вместо переключателя людей — просто его имя */
+.feed-switch-static {
+  cursor: default;
+}
+.feed-switch-static:active {
+  transform: none;
+}
+
+/* ---------- Вход работника (настройки работника) ---------- */
+
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: var(--rim);
+}
+.account-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.account-status {
+  font-size: 14px;
+  font-weight: 600;
+}
+.account-hint {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.account-link {
+  font-size: 12px;
+  font-family: ui-monospace, Menlo, monospace;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.account .multi-row button {
+  width: 100%;
+}
+.link-danger {
+  background: none;
+  border: none;
+  color: var(--owed);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px;
+  cursor: pointer;
+}

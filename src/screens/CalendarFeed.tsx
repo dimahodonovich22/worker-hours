@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { AppState, Entry, FeedFilter, Note } from '../types';
+import type { AppState, Entry, FeedFilter, Note, Session } from '../types';
 import { shiftMonth, ymd } from '../calc';
 import { daysOfRange, filterWorkerId, groupByDate, invoiceTotals, monthDiff, sumDays } from '../feedModel';
 import { weekStartFromDateStr } from '../calc';
@@ -11,6 +11,8 @@ import '../feed.css';
 
 type Props = {
   state: AppState;
+  session: Session;
+  onLogout: () => void;
   onSetFilter: (f: FeedFilter) => void;
   onSetSelf: (workerId: string) => void;
   onAddEntry: (workerId: string, date: string) => void;
@@ -52,9 +54,11 @@ export function CalendarFeed(props: Props) {
   const filter: FeedFilter = state.feedFilter ?? (state.selfWorkerId ? { kind: 'me' } : { kind: 'all' });
   const workerFilter = filterWorkerId(filter, state.selfWorkerId);
   const showNames = workerFilter === undefined;
+  const isAdmin = props.session.role === 'admin';
+  // Суммы у администратора — по ставке фактуры; у работника — его заработок по ставкам в его записях.
   const rates = useMemo(
-    () => ({ hourly: state.overviewRates?.hourly ?? 0, perKm: state.overviewRates?.perKm ?? 0 }),
-    [state.overviewRates],
+    () => (isAdmin ? { hourly: state.overviewRates?.hourly ?? 0, perKm: state.overviewRates?.perKm ?? 0 } : null),
+    [isAdmin, state.overviewRates],
   );
   const today = ymd(new Date());
   const thisMonth = today.slice(0, 7);
@@ -224,14 +228,19 @@ export function CalendarFeed(props: Props) {
       .map((w) => {
         const es = state.entries.filter((e) => e.workerId === w.id && e.date >= req.start && e.date <= req.end);
         const ns = state.notes.filter((n) => n.workerId === w.id && n.date >= req.start && n.date <= req.end);
-        return { worker: w, t: invoiceTotals(sumDays(days, groupByDate(es), groupByDate(ns), workersById), rates) };
+        return { worker: w, t: withRates(sumDays(days, groupByDate(es), groupByDate(ns), workersById)) };
       })
       .filter((r) => workerFilter !== undefined || r.t.count > 0 || r.t.pay > 0);
-    return { rows, total: invoiceTotals(sumDays(days, entriesByDate, notesByDate, workersById), rates) };
+    return { rows, total: withRates(sumDays(days, entriesByDate, notesByDate, workersById)) };
+  }
+
+  function withRates(t: ReturnType<typeof sumDays>) {
+    return rates ? invoiceTotals(t, rates) : t;
   }
 
   // Ставка фактуры — та же, что в «Сводке» (нажатие на ячейки «ч» / «км»).
   function askRate(which: 'hourly' | 'perKm') {
+    if (!rates) return;
     const label = which === 'hourly' ? 'Ставка фактуры, € за час' : 'Ставка фактуры, € за км';
     const current = rates[which];
     const input = prompt(label, current ? String(current) : '');
@@ -254,11 +263,17 @@ export function CalendarFeed(props: Props) {
   return (
     <div className="feed">
       <header className="feed-header">
-        <span className="test-tag">ТЕСТ</span>
-        <button className="feed-switch" onClick={() => setSheet({ kind: 'switcher' })}>
-          <span className="feed-switch-label">{filterLabel}</span>
-          <Icon name="chevronDown" size={16} className="feed-switch-caret" />
-        </button>
+        {isAdmin ? (
+          <button className="feed-switch" onClick={() => setSheet({ kind: 'switcher' })}>
+            <span className="feed-switch-label">{filterLabel}</span>
+            <Icon name="chevronDown" size={16} className="feed-switch-caret" />
+          </button>
+        ) : (
+          // Работник видит только свои часы — переключать некого.
+          <div className="feed-switch feed-switch-static">
+            <span className="feed-switch-label">{props.session.name ?? 'Мои часы'}</span>
+          </div>
+        )}
         <label className="feed-icon-btn" aria-label="Перейти к дате">
           <Icon name="calendar" />
           <input
@@ -274,7 +289,7 @@ export function CalendarFeed(props: Props) {
         </button>
       </header>
 
-      {state.workers.length === 0 ? (
+      {!isAdmin ? null : state.workers.length === 0 ? (
         <div className="feed-banner">
           <span>Добавьте первого работника (или себя), чтобы начать записывать часы.</span>
           <button onClick={() => leave(props.onAddWorker)}>Добавить</button>
@@ -376,6 +391,12 @@ export function CalendarFeed(props: Props) {
 
       {sheet?.kind === 'menu' && (
         <MenuSheet
+          isAdmin={isAdmin}
+          login={props.session.login}
+          onLogout={() => {
+            setSheet(null);
+            props.onLogout();
+          }}
           onSummary={() => leave(props.onOpenSummary)}
           onBackup={() => {
             setSheet(null);
@@ -415,7 +436,7 @@ export function CalendarFeed(props: Props) {
               total={total}
               team={workerFilter === undefined}
               rates={rates}
-              onEditRate={askRate}
+              onEditRate={isAdmin ? askRate : undefined}
               onOpenWorker={(id) =>
                 leave(() => {
                   memory.reopen = { kind: 'period', req: sheet.req };

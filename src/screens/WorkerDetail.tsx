@@ -26,7 +26,7 @@ type Props = {
   onAddNote: () => void;
   onEditEntry: (id: string) => void;
   onEditNote: (id: string) => void;
-  onEditWorker: () => void;
+  onEditWorker?: () => void; // нет у работника — настройки только у администратора
   onDeleteEntry: (id: string) => void;
   onOpenReport: () => void;
 };
@@ -130,7 +130,11 @@ export function WorkerDetail({
       <header className="topbar">
         <button className="link" onClick={onBack}>‹ Назад</button>
         <h1>{worker.name}</h1>
-        <button className="link" onClick={onEditWorker} aria-label="Настройки работника"><Icon name="pencil" size={19} /></button>
+        {onEditWorker ? (
+          <button className="link" onClick={onEditWorker} aria-label="Настройки работника"><Icon name="pencil" size={19} /></button>
+        ) : (
+          <span />
+        )}
       </header>
 
       <PeriodNav view={view} onChange={onChangeView} />

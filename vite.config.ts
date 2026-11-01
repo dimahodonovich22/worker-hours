@@ -11,12 +11,16 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: { cacheId: 'worker-hours-test' },
+      workbox: {
+        cacheId: 'chasy',
+        // Запросы к серверу никогда не подменяются закэшированной страницей.
+        navigateFallbackDenylist: [/^\/api\//],
+      },
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         id: base,
-        name: 'Учёт часов (тест)',
-        short_name: 'Часы тест',
+        name: 'Учёт часов',
+        short_name: 'Часы',
         description: 'Учёт рабочих часов и километров',
         theme_color: '#f5f5f7',
         background_color: '#ffffff',

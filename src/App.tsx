@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import type { AppState, Entry, FeedFilter, Note, PeriodView, Worker } from './types';
-import { loadState, saveState, uid } from './storage';
+import { useCallback, useEffect, useState } from 'react';
+import type { AppState, Entry, FeedFilter, Note, PeriodView, Session, Worker } from './types';
+import { loadFeedFilter, saveFeedFilter, uid } from './storage';
+import { api, ApiError } from './api';
 import { currentMonthKey, currentWeekStart, isPayExpense, periodBounds, weekEnd, ymd } from './calc';
 import { CalendarFeed } from './screens/CalendarFeed';
 import { WorkersList } from './screens/WorkersList';
@@ -9,6 +10,7 @@ import { EntryForm } from './screens/EntryForm';
 import { WorkerForm } from './screens/WorkerForm';
 import { ReportView } from './screens/ReportView';
 import { NoteForm } from './screens/NoteForm';
+import { InviteScreen, LoginScreen } from './screens/AuthScreens';
 import type { PeriodRequest } from './components/feed/MonthSection';
 
 type Route =
@@ -20,14 +22,82 @@ type Route =
   | { name: 'noteForm'; workerId: string; noteId?: string; date?: string }
   | { name: 'report'; workerId: string; start: string; end: string; label: string };
 
-/** Если экран ссылается на удалённого работника — возвращаемся на главный. */
+/** Если экран ссылается на удалённого работника (или недоступен) — возвращаемся на главный. */
 function BackHome({ onHome }: { onHome: () => void }) {
   useEffect(onHome, [onHome]);
   return null;
 }
 
+/** Ссылка-приглашение: https://…/#/invite/<код> */
+function inviteTokenFromHash(): string | null {
+  const m = window.location.hash.match(/^#\/invite\/([A-Za-z0-9_-]+)$/);
+  return m ? m[1] : null;
+}
+
+function Splash({ text, action }: { text: string; action?: { label: string; run: () => void } }) {
+  return (
+    <div className="auth">
+      <div className="auth-card">
+        <img className="auth-icon" src="icon-192.png" alt="" width={64} height={64} />
+        <div className="auth-hint">{text}</div>
+        {action && (
+          <button className="primary" onClick={action.run}>
+            {action.label}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Вход ---------- */
+
 export function App() {
-  const [state, setState] = useState<AppState>(() => loadState());
+  const [invite, setInvite] = useState<string | null>(() => inviteTokenFromHash());
+  const [session, setSession] = useState<Session | null | 'loading'>('loading');
+
+  useEffect(() => {
+    const onHash = () => setInvite(inviteTokenFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => {
+    api
+      .session()
+      .then((r) => setSession(r.user))
+      .catch(() => setSession(null));
+  }, []);
+
+  const logout = useCallback(() => {
+    api.logout().catch(() => {});
+    setSession(null);
+  }, []);
+
+  if (invite) {
+    return (
+      <InviteScreen
+        token={invite}
+        onDone={(user) => {
+          history.replaceState(null, '', window.location.pathname); // убрать код из адреса
+          setInvite(null);
+          setSession(user);
+        }}
+      />
+    );
+  }
+  if (session === 'loading') return <Splash text="Загрузка…" />;
+  if (!session) return <LoginScreen onLoggedIn={setSession} />;
+  return <Workspace key={session.login} session={session} onLogout={logout} />;
+}
+
+/* ---------- Приложение после входа ---------- */
+
+function Workspace({ session, onLogout }: { session: Session; onLogout: () => void }) {
+  const isAdmin = session.role === 'admin';
+  const [state, setState] = useState<AppState | null>(null);
+  const [loadError, setLoadError] = useState('');
+
   // Стек экранов: «Назад» и «Сохранить» возвращают туда, откуда пришли (в ленту или к работнику).
   const [stack, setStack] = useState<Route[]>([{ name: 'feed' }]);
   const route = stack[stack.length - 1];
@@ -42,75 +112,127 @@ export function App() {
     return { period: 'month', month: currentMonthKey(), rangeStart: ws, rangeEnd: weekEnd(ws) };
   });
 
-  useEffect(() => {
-    saveState(state);
-  }, [state]);
+  const reload = useCallback(async () => {
+    try {
+      const d = await api.data();
+      setState({
+        workers: d.workers ?? [],
+        entries: d.entries ?? [],
+        notes: d.notes ?? [],
+        overviewRates: d.overviewRates,
+        selfWorkerId: d.selfWorkerId,
+        // Выбор «чьи часы показывать» хранится на телефоне; работник всегда видит только свои.
+        feedFilter: isAdmin ? loadFeedFilter() : { kind: 'me' },
+      });
+      setLoadError('');
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return onLogout();
+      setLoadError(e instanceof ApiError ? e.message : 'Не удалось загрузить данные');
+    }
+  }, [isAdmin, onLogout]);
 
-  function upsertWorker(w: Worker) {
-    setState((s) => {
-      const exists = s.workers.some((x) => x.id === w.id);
-      return {
-        ...s,
-        workers: exists ? s.workers.map((x) => (x.id === w.id ? w : x)) : [...s.workers, w],
-      };
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  // Вернулись в приложение — подтянуть свежие записи (например, работники внесли часы).
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reload();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [reload]);
+
+  /** Изменения показываются сразу, а на сервер уходят следом. Если не сохранилось — сообщаем и перезагружаем. */
+  function persist<T>(p: Promise<T>, onSaved?: (r: T) => void) {
+    p.then(onSaved).catch((e: unknown) => {
+      if (e instanceof ApiError && e.status === 401) return onLogout();
+      alert(`Не сохранилось: ${e instanceof Error ? e.message : 'ошибка'}`);
+      reload();
     });
   }
 
+  const update = (fn: (s: AppState) => AppState) => setState((s) => (s ? fn(s) : s));
+
+  function upsertWorker(w: Worker) {
+    update((s) => {
+      const exists = s.workers.some((x) => x.id === w.id);
+      return { ...s, workers: exists ? s.workers.map((x) => (x.id === w.id ? w : x)) : [...s.workers, w] };
+    });
+    persist(api.putWorker(w));
+  }
+
   function deleteWorker(id: string) {
-    setState((s) => ({
+    update((s) => ({
       ...s,
       workers: s.workers.filter((w) => w.id !== id),
       entries: s.entries.filter((e) => e.workerId !== id),
       notes: s.notes.filter((n) => n.workerId !== id),
       selfWorkerId: s.selfWorkerId === id ? undefined : s.selfWorkerId,
-      feedFilter:
-        s.feedFilter?.kind === 'worker' && s.feedFilter.workerId === id ? { kind: 'all' } : s.feedFilter,
+      feedFilter: s.feedFilter?.kind === 'worker' && s.feedFilter.workerId === id ? { kind: 'all' } : s.feedFilter,
     }));
+    persist(api.deleteWorker(id));
   }
 
-  function upsertEntry(e: Entry) {
-    setState((s) => {
+  function replaceEntry(e: Entry) {
+    update((s) => {
       const exists = s.entries.some((x) => x.id === e.id);
-      return {
-        ...s,
-        entries: exists ? s.entries.map((x) => (x.id === e.id ? e : x)) : [...s.entries, e],
-      };
+      return { ...s, entries: exists ? s.entries.map((x) => (x.id === e.id ? e : x)) : [...s.entries, e] };
     });
+  }
+  function upsertEntry(e: Entry) {
+    replaceEntry(e);
+    // Сервер может поправить запись (у работника ставку ставит сервер) — берём сохранённую версию.
+    persist(api.putEntry(e), replaceEntry);
   }
 
   function deleteEntry(id: string) {
-    setState((s) => ({ ...s, entries: s.entries.filter((e) => e.id !== id) }));
+    update((s) => ({ ...s, entries: s.entries.filter((e) => e.id !== id) }));
+    persist(api.deleteEntry(id));
   }
 
-  function upsertNote(n: Note) {
-    setState((s) => {
+  function replaceNote(n: Note) {
+    update((s) => {
       const exists = s.notes.some((x) => x.id === n.id);
-      return {
-        ...s,
-        notes: exists ? s.notes.map((x) => (x.id === n.id ? n : x)) : [...s.notes, n],
-      };
+      return { ...s, notes: exists ? s.notes.map((x) => (x.id === n.id ? n : x)) : [...s.notes, n] };
     });
+  }
+  function upsertNote(n: Note) {
+    replaceNote(n);
+    persist(api.putNote(n), replaceNote);
   }
 
   function deleteNote(id: string) {
-    setState((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== id) }));
+    update((s) => ({ ...s, notes: s.notes.filter((n) => n.id !== id) }));
+    persist(api.deleteNote(id));
   }
 
   function importState(next: AppState) {
-    setState(next);
-    goHome();
+    api
+      .importAll(next)
+      .then((r) => {
+        alert(`Загружено на сервер: работников ${r.workers}, записей ${r.entries}, заметок ${r.notes}.`);
+        goHome();
+        reload();
+      })
+      .catch((e: unknown) => alert(`Не загрузилось: ${e instanceof Error ? e.message : 'ошибка'}`));
   }
 
   function setOverviewRates(rates: { hourly: number; perKm: number }) {
-    setState((s) => ({ ...s, overviewRates: rates }));
+    update((s) => ({ ...s, overviewRates: rates }));
+    persist(api.settings({ overviewRates: rates }));
   }
 
   function setFeedFilter(f: FeedFilter) {
-    setState((s) => ({ ...s, feedFilter: f }));
+    saveFeedFilter(f);
+    update((s) => ({ ...s, feedFilter: f }));
   }
 
   function setSelf(workerId: string) {
-    setState((s) => ({ ...s, selfWorkerId: workerId, feedFilter: { kind: 'me' } }));
+    saveFeedFilter({ kind: 'me' });
+    update((s) => ({ ...s, selfWorkerId: workerId, feedFilter: { kind: 'me' } }));
+    persist(api.settings({ selfWorkerId: workerId }));
   }
 
   // Из ленты: открыть работника сразу на нужной неделе или месяце.
@@ -123,10 +245,23 @@ export function App() {
     push({ name: 'worker', workerId });
   }
 
+  if (!state) {
+    return loadError ? (
+      <Splash text={loadError} action={{ label: 'Повторить', run: reload }} />
+    ) : (
+      <Splash text="Загрузка данных…" />
+    );
+  }
+
+  // Экраны только для администратора.
+  if (!isAdmin && (route.name === 'summary' || route.name === 'workerForm')) return <BackHome onHome={goHome} />;
+
   if (route.name === 'feed') {
     return (
       <CalendarFeed
         state={state}
+        session={session}
+        onLogout={onLogout}
         onSetFilter={setFeedFilter}
         onSetSelf={setSelf}
         onAddEntry={(workerId, date) => push({ name: 'entry', workerId, date })}
@@ -174,7 +309,7 @@ export function App() {
         onAddNote={() => push({ name: 'noteForm', workerId: worker.id })}
         onEditEntry={(eid) => push({ name: 'entry', workerId: worker.id, entryId: eid })}
         onEditNote={(nid) => push({ name: 'noteForm', workerId: worker.id, noteId: nid })}
-        onEditWorker={() => push({ name: 'workerForm', workerId: worker.id })}
+        onEditWorker={isAdmin ? () => push({ name: 'workerForm', workerId: worker.id }) : undefined}
         onDeleteEntry={deleteEntry}
         allEntriesForWorker={state.entries.filter((e) => e.workerId === worker.id)}
         onOpenReport={() => {
@@ -232,6 +367,7 @@ export function App() {
         initialDate={route.date}
         knownLocations={Array.from(new Set(state.entries.map((e) => e.location).filter(Boolean)))}
         defaults={defaults}
+        showRates={isAdmin}
         onCancel={pop}
         onSave={(data) => {
           upsertEntry({ id: existing?.id ?? uid(), workerId: worker.id, ...data });
@@ -279,6 +415,7 @@ export function App() {
     return (
       <WorkerForm
         existing={existing}
+        isSelf={!!existing && existing.id === state.selfWorkerId}
         onCancel={pop}
         onSave={(data) => {
           upsertWorker({ id: existing?.id ?? uid(), ...data });

@@ -1,29 +1,24 @@
-import type { AppState } from './types';
+import type { FeedFilter } from './types';
 
-// Тестовая копия: свой ключ, чтобы не трогать данные основного приложения
-// (оба живут на одном домене dimahodonovich22.github.io).
-const KEY = 'worker-hours-test-v1';
+// Данные живут на сервере. На устройстве храним только личный выбор:
+// чьи часы показывать в ленте (у каждого телефона свой).
+const FILTER_KEY = 'chasy-feed-filter';
 
-export function loadState(): AppState {
+export function loadFeedFilter(): FeedFilter | undefined {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { workers: [], entries: [], notes: [] };
-    const parsed = JSON.parse(raw) as AppState;
-    return {
-      workers: parsed.workers ?? [],
-      entries: parsed.entries ?? [],
-      notes: parsed.notes ?? [],
-      overviewRates: parsed.overviewRates,
-      selfWorkerId: parsed.selfWorkerId,
-      feedFilter: parsed.feedFilter,
-    };
+    const raw = localStorage.getItem(FILTER_KEY);
+    return raw ? (JSON.parse(raw) as FeedFilter) : undefined;
   } catch {
-    return { workers: [], entries: [], notes: [] };
+    return undefined;
   }
 }
 
-export function saveState(state: AppState): void {
-  localStorage.setItem(KEY, JSON.stringify(state));
+export function saveFeedFilter(f: FeedFilter): void {
+  try {
+    localStorage.setItem(FILTER_KEY, JSON.stringify(f));
+  } catch {
+    // нет доступа к хранилищу — выбор просто не запомнится
+  }
 }
 
 export function uid(): string {

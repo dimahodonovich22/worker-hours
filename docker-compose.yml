@@ -1,0 +1,19 @@
+# Сервер Hetzner: «Учёт часов» за общим Caddy (HTTPS), порт наружу не публикуется.
+# Caddy ходит сюда как chasy:8080 (сеть web). База — data/chasy.db (не перезаписывается при обновлении).
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data
+    networks:
+      web:
+        aliases:
+          - chasy
+
+networks:
+  web:
+    external: true

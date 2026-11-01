@@ -97,7 +97,7 @@ export function WorkersList({
     <div className="screen">
       <header className="topbar">
         <button className="link" onClick={onBack}>‹ Назад</button>
-        <h1>Сводка <span className="test-tag">ТЕСТ</span></h1>
+        <h1>Сводка</h1>
         <button className="link" onClick={onAddWorker}>+ Добавить</button>
       </header>
 

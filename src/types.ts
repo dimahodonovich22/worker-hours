@@ -55,6 +55,14 @@ export type PeriodView = {
   rangeEnd: string;   // YYYY-MM-DD
 };
 
+// Кто вошёл: администратор видит всё, работник — только своё.
+export type Session = {
+  login: string;
+  role: 'admin' | 'worker';
+  workerId: string | null;
+  name: string | null;
+};
+
 // Чьи часы показывать на главном экране (ленте месяцев).
 export type FeedFilter =
   | { kind: 'me' }

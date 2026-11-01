@@ -8,6 +8,7 @@ type Props = {
   existing?: Entry;
   knownLocations: string[];
   defaults: { hourly: number; perKm: number; km: number };
+  showRates?: boolean; // ставки видит и меняет только администратор
   initialDate?: string; // дата новой записи (при нажатии на день в ленте)
   onCancel: () => void;
   onSave: (data: Omit<Entry, 'id' | 'workerId'>) => void;
@@ -21,6 +22,7 @@ export function EntryForm({
   initialDate,
   knownLocations,
   defaults,
+  showRates = true,
   onCancel,
   onSave,
   onDuplicate,
@@ -229,26 +231,28 @@ export function EntryForm({
           />
         </label>
 
-        <div className="field-row">
-          <label className="field">
-            <span>Ставка €/ч</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={hourly}
-              onChange={(e) => setHourly(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Ставка €/км</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={perKm}
-              onChange={(e) => setPerKm(e.target.value)}
-            />
-          </label>
-        </div>
+        {showRates && (
+          <div className="field-row">
+            <label className="field">
+              <span>Ставка €/ч</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={hourly}
+                onChange={(e) => setHourly(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Ставка €/км</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={perKm}
+                onChange={(e) => setPerKm(e.target.value)}
+              />
+            </label>
+          </div>
+        )}
 
         <PhotoPicker photos={photos} onChange={setPhotos} />
 

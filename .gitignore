@@ -7,3 +7,5 @@ dist-ssr
 tsconfig.tsbuildinfo
 .claude/
 .claude-flow/
+.env
+data/
