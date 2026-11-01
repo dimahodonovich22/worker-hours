@@ -382,8 +382,9 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
               }
             : undefined
         }
+        // Удалить рабочий день может только администратор; работник может его исправить.
         onDelete={
-          existing
+          existing && isAdmin
             ? () => {
                 deleteEntry(existing.id);
                 pop();

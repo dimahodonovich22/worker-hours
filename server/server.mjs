@@ -336,6 +336,8 @@ async function api(req, res, url) {
     if (existing && !admin && existing.worker_id !== user.worker_id) fail(403, 'Нет доступа');
 
     if (method === 'DELETE') {
+      // Рабочие дни удаляет только администратор; работник может их только исправлять.
+      if (table === 'entries' && !admin) fail(403, 'Удалять рабочие дни может только администратор');
       q(`DELETE FROM ${table} WHERE id = ?`).run(id);
       return send(res, 200, {});
     }
