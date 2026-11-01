@@ -387,7 +387,16 @@ async function api(req, res, url) {
     }
     if (parts[2] === 'account' && method === 'GET') {
       const acc = q("SELECT login, pass, invite_expires FROM users WHERE worker_id = ? AND role = 'worker'").get(id);
-      const status = !acc ? 'none' : acc.pass ? 'active' : acc.invite_expires > Date.now() ? 'invited' : 'expired';
+      // Вход заведён заранее (логин есть), но ссылку ещё не создавали — это «ещё не приглашён».
+      const status = !acc
+        ? 'none'
+        : acc.pass
+          ? 'active'
+          : !acc.invite_expires
+            ? 'none'
+            : acc.invite_expires > Date.now()
+              ? 'invited'
+              : 'expired';
       return send(res, 200, { status, login: acc?.login ?? null });
     }
     if (parts[2] === 'account' && method === 'DELETE') {
