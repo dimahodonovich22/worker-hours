@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { Entry, FeedFilter, Note, Worker } from '../../types';
 import { Icon } from '../Icon';
-import { entryHours, entryPay, formatNum, isPayExpense, noteEffectiveAmount } from '../../calc';
+import { entryHours, entryPay, entryRate, formatNum, isPayExpense, noteEffectiveAmount } from '../../calc';
 import {
-  entryInvoicePay,
   entryLocations,
   WEEKDAYS,
   weekdayIndex,
@@ -198,7 +197,6 @@ type DayProps = {
   notes: Note[];
   workersById: Map<string, Worker>;
   showNames: boolean;
-  rates: Rates | null; // ставка фактуры (администратор); null — по ставке в записи (работник)
   isAdmin: boolean;
   login: string;
   onEditEntry: (e: Entry) => void;
@@ -222,6 +220,7 @@ export function DaySheet(p: DayProps) {
           const times = [`${e.start}–${e.end}`, ...(e.extraSegments?.map((s) => `${s.start}–${s.end}`) ?? [])].join(
             ' · ',
           );
+          const worker = p.workersById.get(e.workerId) ?? { id: e.workerId, name: '' };
           return (
             <button key={e.id} className="day-item" onClick={() => p.onEditEntry(e)}>
               <span className="day-item-main">
@@ -240,20 +239,9 @@ export function DaySheet(p: DayProps) {
               </span>
               <span className="day-item-side">
                 <b>{formatNum(entryHours(e))} ч</b>
-                <small>
-                  €
-                  {formatNum(
-                    p.rates
-                      ? entryInvoicePay(e, p.rates)
-                      : entryPay(
-                          e,
-                          p.workersById.get(e.workerId) ?? {
-                            id: e.workerId,
-                            name: '',
-                          },
-                        ),
-                  )}
-                </small>
+                {/* Сумма записи — по ставке этого человека из записи (у менеджера сервер присылает ставку фактуры). */}
+                <small>€{formatNum(entryPay(e, worker))}</small>
+                <small className="day-item-rate">€{formatNum(entryRate(e, worker).hourly)}/ч</small>
               </span>
             </button>
           );

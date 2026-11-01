@@ -479,7 +479,6 @@ export function CalendarFeed(props: Props) {
           notes={notesByDate.get(sheet.date) ?? []}
           workersById={workersById}
           showNames={showNames}
-          rates={rates}
           isAdmin={isAdmin}
           login={props.session.login}
           onEditEntry={(e) => leave(() => props.onEditEntry(e))}

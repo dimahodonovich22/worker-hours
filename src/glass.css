@@ -1099,3 +1099,8 @@ button.danger {
   color: var(--muted);
   padding: 2px 4px 0;
 }
+
+.day-item-side .day-item-rate {
+  color: var(--muted) !important;
+  font-weight: 500;
+}
