@@ -14,14 +14,12 @@ import {
   weekdayIndex,
   type DayTotals,
   type Rates,
+  monthRequest,
+  weekRequest,
+  type PeriodRequest,
 } from '../../feedModel';
 
-export type PeriodRequest = {
-  kind: 'week' | 'month';
-  start: string;
-  end: string;
-  title: string;
-};
+export type { PeriodRequest } from '../../feedModel';
 
 type Props = {
   monthKey: string;
@@ -69,7 +67,7 @@ export const MonthSection = memo(function MonthSection({
       <button
         className="feed-month-head"
         onClick={() =>
-          onPeriod({ kind: 'month', start: monthDays[0], end: monthDays[monthDays.length - 1], title })
+          onPeriod(monthRequest(monthKey))
         }
       >
         <span className="feed-month-title">{title}</span>
@@ -99,12 +97,7 @@ export const MonthSection = memo(function MonthSection({
               <button
                 className="feed-week-head"
                 onClick={() =>
-                  onPeriod({
-                    kind: 'week',
-                    start: p.weekStart,
-                    end: p.weekEnd,
-                    title: `Неделя ${weekNo} · ${range}`,
-                  })
+                  onPeriod(weekRequest(p.weekStart))
                 }
               >
                 <span>
@@ -171,6 +164,7 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
           <span className="feed-line" key={e.id}>
             {/* Длинное название сокращается «…», имя работника видно всегда */}
             <span className="feed-obj">
+              {e.pendingChange && <span className="feed-pending" title="Исправление ждёт проверки" />}
               <span className="feed-loc">{entryLocations(e)}</span>
               {who(e.workerId)}
             </span>
@@ -182,6 +176,7 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
           <span className={`feed-note ${n.direction}`} key={n.id}>
             <span className="feed-obj">
               <Icon name="note" size={12} className="feed-note-icon" />
+              {n.pendingChange && <span className="feed-pending" title="Исправление ждёт проверки" />}
               <span className="feed-loc">{n.description}</span>
               {who(n.workerId)}
             </span>

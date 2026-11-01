@@ -11,6 +11,7 @@ import { WorkerForm } from './screens/WorkerForm';
 import { ReportView } from './screens/ReportView';
 import { NoteForm } from './screens/NoteForm';
 import { InviteScreen, LoginScreen } from './screens/AuthScreens';
+import { withProposal } from './changes';
 import type { PeriodRequest } from './components/feed/MonthSection';
 
 type Route =
@@ -182,7 +183,9 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
     });
   }
   function upsertEntry(e: Entry) {
-    replaceEntry(e);
+    // Исправление работника уходит администратору на проверку — в итогах остаются прежние данные.
+    const isEdit = state?.entries.some((x) => x.id === e.id);
+    if (isAdmin || !isEdit) replaceEntry(e);
     // Сервер может поправить запись (у работника ставку ставит сервер) — берём сохранённую версию.
     persist(api.putEntry(e), replaceEntry);
   }
@@ -199,8 +202,16 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
     });
   }
   function upsertNote(n: Note) {
-    replaceNote(n);
+    const isEdit = state?.notes.some((x) => x.id === n.id);
+    if (isAdmin || !isEdit) replaceNote(n);
     persist(api.putNote(n), replaceNote);
+  }
+
+  /** Администратор принимает или отклоняет исправление работника. */
+  function reviewChange(kind: 'entries' | 'notes', id: string, action: 'approve' | 'reject') {
+    persist(api.review(kind, id, action), (item) =>
+      kind === 'entries' ? replaceEntry(item as Entry) : replaceNote(item as Note),
+    );
   }
 
   function deleteNote(id: string) {
@@ -245,6 +256,14 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
     push({ name: 'worker', workerId });
   }
 
+  /** Подсказка в форме, если по записи есть непроверенное исправление. */
+  function pendingNotice(item?: Entry | Note): string | undefined {
+    if (!item?.pendingChange) return undefined;
+    return isAdmin
+      ? 'Работник предложил исправление — оно ещё не применено. Проверьте его в «Изменения ждут проверки» на главном экране.'
+      : 'Ваше исправление отправлено и ждёт подтверждения. До этого в итогах остаются прежние данные.';
+  }
+
   if (!state) {
     return loadError ? (
       <Splash text={loadError} action={{ label: 'Повторить', run: reload }} />
@@ -274,6 +293,7 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
         onOpenSummary={() => push({ name: 'summary' })}
         onImport={importState}
         onSetRates={setOverviewRates}
+        onReview={reviewChange}
       />
     );
   }
@@ -328,15 +348,17 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
       <NoteForm
         key={existing?.id ?? 'new'}
         worker={worker}
-        existing={existing}
+        existing={existing && !isAdmin ? withProposal(existing) : existing}
+        notice={pendingNotice(existing)}
         initialDate={route.date}
         onCancel={pop}
         onSave={(data) => {
           upsertNote({ id: existing?.id ?? uid(), workerId: worker.id, ...data });
           pop();
         }}
+        // Удалить заметку может только администратор.
         onDelete={
-          existing
+          existing && isAdmin
             ? () => {
                 deleteNote(existing.id);
                 pop();
@@ -363,7 +385,8 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
       <EntryForm
         key={existing?.id ?? 'new'}
         worker={worker}
-        existing={existing}
+        existing={existing && !isAdmin ? withProposal(existing) : existing}
+        notice={pendingNotice(existing)}
         initialDate={route.date}
         knownLocations={Array.from(new Set(state.entries.map((e) => e.location).filter(Boolean)))}
         defaults={defaults}
@@ -377,7 +400,8 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
           existing
             ? () => {
                 const copyId = uid();
-                upsertEntry({ ...existing, id: copyId, date: ymd(new Date()) });
+                const { pendingChange: _pending, ...approved } = existing;
+                upsertEntry({ ...approved, id: copyId, date: ymd(new Date()) });
                 replace({ name: 'entry', workerId: worker.id, entryId: copyId });
               }
             : undefined

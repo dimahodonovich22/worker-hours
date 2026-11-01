@@ -22,7 +22,12 @@ export type Entry = {
   // Часы суммируются с основным сегментом, обед вычитается один раз за день.
   extraSegments?: Segment[];
   photos?: string[]; // data URL'ы (JPEG, сжатые)
+  // Исправление работника, которое ждёт решения администратора (заполняет сервер).
+  pendingChange?: PendingChange<Entry>;
 };
+
+/** Предложенное работником исправление: в итогах остаются прежние данные, пока администратор не примет. */
+export type PendingChange<T> = { data: T; at: number; by: string };
 
 export type Segment = {
   location: string;
@@ -45,6 +50,7 @@ export type Note = {
   // Для «мне должны»: расход по работе (парковка, покупки) — прибавляется
   // к сумме к выплате за работу, а не учитывается отдельно в заметках.
   addToPay?: boolean;
+  pendingChange?: PendingChange<Note>;
 };
 
 // Выбранный период просмотра — общий для главного экрана и экрана работника.

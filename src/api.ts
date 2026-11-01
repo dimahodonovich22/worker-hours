@@ -47,6 +47,9 @@ export const api = {
   deleteEntry: (id: string) => request<object>('DELETE', `entries/${enc(id)}`),
   putNote: (n: Note) => request<Note>('PUT', `notes/${enc(n.id)}`, n),
   deleteNote: (id: string) => request<object>('DELETE', `notes/${enc(id)}`),
+  /** Администратор принимает или отклоняет исправление работника; в ответе — запись после решения. */
+  review: (kind: 'entries' | 'notes', id: string, action: 'approve' | 'reject') =>
+    request<Entry | Note>('POST', `${kind}/${enc(id)}/${action}`),
   putWorker: (w: Worker) => request<Worker>('PUT', `workers/${enc(w.id)}`, w),
   deleteWorker: (id: string) => request<object>('DELETE', `workers/${enc(id)}`),
   settings: (s: { overviewRates?: { hourly: number; perKm: number }; selfWorkerId?: string | null }) =>

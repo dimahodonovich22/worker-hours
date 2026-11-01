@@ -6,13 +6,14 @@ import { PhotoPicker } from '../components/PhotoPicker';
 type Props = {
   worker: Worker;
   existing?: Note;
+  notice?: string; // подсказка сверху формы (непроверенное исправление)
   initialDate?: string; // дата новой записи (при нажатии на день в ленте)
   onCancel: () => void;
   onSave: (data: Omit<Note, 'id' | 'workerId'>) => void;
   onDelete?: () => void;
 };
 
-export function NoteForm({ worker, existing, initialDate, onCancel, onSave, onDelete }: Props) {
+export function NoteForm({ worker, existing, notice, initialDate, onCancel, onSave, onDelete }: Props) {
   const [date, setDate] = useState(existing?.date ?? initialDate ?? ymd(new Date()));
   const [direction, setDirection] = useState<'minus' | 'plus'>(
     existing?.direction ?? 'minus',
@@ -62,6 +63,7 @@ export function NoteForm({ worker, existing, initialDate, onCancel, onSave, onDe
       <div className="form-sub">{worker.name}</div>
 
       <div className="form">
+        {notice && <div className="form-hint pending-hint">{notice}</div>}
         <label className="field">
           <span>Дата</span>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />

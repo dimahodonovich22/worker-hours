@@ -56,6 +56,12 @@ db.exec(`
   );
 `);
 
+// Исправление работника не меняет запись сразу — оно лежит в pending, пока администратор не примет его.
+for (const t of ['entries', 'notes']) {
+  const cols = db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+  if (!cols.includes('pending')) db.exec(`ALTER TABLE ${t} ADD COLUMN pending TEXT`);
+}
+
 const q = (sql) => db.prepare(sql);
 function tx(fn) {
   db.exec('BEGIN');
@@ -69,6 +75,27 @@ function tx(fn) {
   }
 }
 const parseRows = (rows) => rows.map((r) => JSON.parse(r.data));
+/** Запись + предложенное исправление (если есть) в поле pendingChange. */
+function rowToItem(r) {
+  const item = JSON.parse(r.data);
+  if (r.pending) item.pendingChange = JSON.parse(r.pending);
+  return item;
+}
+const itemRows = (rows) => rows.map(rowToItem);
+const getItem = (table, id) => {
+  const r = q(`SELECT data, pending FROM ${table} WHERE id = ?`).get(id);
+  return r ? rowToItem(r) : null;
+};
+/** Сравнение по содержимому (порядок полей не важен). */
+function sameContent(a, b) {
+  const norm = (v) =>
+    Array.isArray(v)
+      ? v.map(norm)
+      : v && typeof v === 'object'
+        ? Object.fromEntries(Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => [k, norm(v[k])]))
+        : v;
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+}
 const kvGet = (key) => {
   const r = q('SELECT value FROM kv WHERE key = ?').get(key);
   return r ? JSON.parse(r.value) : undefined;
@@ -197,8 +224,8 @@ function dataFor(user) {
   if (user.role === 'admin') {
     return {
       workers: parseRows(q('SELECT data FROM workers').all()),
-      entries: parseRows(q('SELECT data FROM entries ORDER BY date').all()),
-      notes: parseRows(q('SELECT data FROM notes ORDER BY date').all()),
+      entries: itemRows(q('SELECT data, pending FROM entries ORDER BY date').all()),
+      notes: itemRows(q('SELECT data, pending FROM notes ORDER BY date').all()),
       overviewRates: kvGet('overviewRates'),
       selfWorkerId: kvGet('selfWorkerId'),
     };
@@ -207,8 +234,8 @@ function dataFor(user) {
   const w = getWorker(user.worker_id);
   return {
     workers: w ? [w] : [],
-    entries: parseRows(q('SELECT data FROM entries WHERE worker_id = ? ORDER BY date').all(user.worker_id)),
-    notes: parseRows(q('SELECT data FROM notes WHERE worker_id = ? ORDER BY date').all(user.worker_id)),
+    entries: itemRows(q('SELECT data, pending FROM entries WHERE worker_id = ? ORDER BY date').all(user.worker_id)),
+    notes: itemRows(q('SELECT data, pending FROM notes WHERE worker_id = ? ORDER BY date').all(user.worker_id)),
     selfWorkerId: user.worker_id,
   };
 }
@@ -335,14 +362,38 @@ async function api(req, res, url) {
     const existing = q(`SELECT worker_id, data FROM ${table} WHERE id = ?`).get(id);
     if (existing && !admin && existing.worker_id !== user.worker_id) fail(403, 'Нет доступа');
 
+    // Администратор принимает или отклоняет исправление работника.
+    if (parts[2] === 'approve' || parts[2] === 'reject') {
+      needAdmin();
+      if (method !== 'POST') fail(405, 'Метод не поддерживается');
+      const row = q(`SELECT data, pending FROM ${table} WHERE id = ?`).get(id);
+      if (!row || !row.pending) fail(404, 'Исправление не найдено — возможно, уже проверено');
+      if (parts[2] === 'approve') {
+        const cur = JSON.parse(row.data);
+        const next = { ...JSON.parse(row.pending).data, id, workerId: cur.workerId };
+        if (table === 'entries') {
+          // Ставки решает администратор — они остаются как в записи сейчас.
+          next.hourly = cur.hourly;
+          next.perKm = cur.perKm;
+        }
+        q(`UPDATE ${table} SET data = ?, date = ?, pending = NULL WHERE id = ?`).run(JSON.stringify(next), next.date, id);
+      } else {
+        q(`UPDATE ${table} SET pending = NULL WHERE id = ?`).run(id);
+      }
+      return send(res, 200, getItem(table, id));
+    }
+    if (parts.length > 2) fail(404, 'Не найдено');
+
     if (method === 'DELETE') {
-      // Рабочие дни удаляет только администратор; работник может их только исправлять.
-      if (table === 'entries' && !admin) fail(403, 'Удалять рабочие дни может только администратор');
+      // Удаляет только администратор; работник может свои записи и заметки только исправлять.
+      if (!admin) fail(403, 'Удалять может только администратор');
       q(`DELETE FROM ${table} WHERE id = ?`).run(id);
       return send(res, 200, {});
     }
     if (method === 'PUT') {
       const item = await readJson(req, MAX_ITEM + 10000);
+      if (!isObj(item)) fail(400, 'Неверные данные');
+      delete item.pendingChange; // это поле считает только сервер
       if (!admin) {
         if (!user.worker_id) fail(403, 'Нет доступа');
         item.workerId = user.worker_id; // работник пишет только себе
@@ -355,6 +406,21 @@ async function api(req, res, url) {
       }
       checkItem(item, id);
       if (!getWorker(item.workerId)) fail(400, 'Работник не найден');
+
+      // Работник исправляет уже внесённое — запись не меняется, исправление ждёт администратора.
+      if (!admin && existing) {
+        const current = JSON.parse(existing.data);
+        if (sameContent(current, item)) q(`UPDATE ${table} SET pending = NULL WHERE id = ?`).run(id);
+        else {
+          q(`UPDATE ${table} SET pending = ? WHERE id = ?`).run(
+            JSON.stringify({ data: item, at: Date.now(), by: user.login }),
+            id,
+          );
+        }
+        return send(res, 200, getItem(table, id));
+      }
+
+      // Новая запись (в т.ч. работника) или правка администратора — сохраняется сразу.
       q(`INSERT INTO ${table} (id, worker_id, date, data) VALUES (?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET worker_id = excluded.worker_id, date = excluded.date, data = excluded.data`).run(
         id,
@@ -362,7 +428,7 @@ async function api(req, res, url) {
         item.date,
         JSON.stringify(item),
       );
-      return send(res, 200, item);
+      return send(res, 200, getItem(table, id));
     }
   }
 
@@ -453,8 +519,12 @@ async function api(req, res, url) {
       q('DELETE FROM notes').run();
       q('DELETE FROM workers').run();
       for (const w of s.workers) q('INSERT INTO workers (id, data) VALUES (?, ?)').run(w.id, JSON.stringify(w));
-      for (const e of s.entries) q('INSERT INTO entries (id, worker_id, date, data) VALUES (?, ?, ?, ?)').run(e.id, e.workerId, e.date, JSON.stringify(e));
-      for (const n of notes) q('INSERT INTO notes (id, worker_id, date, data) VALUES (?, ?, ?, ?)').run(n.id, n.workerId, n.date, JSON.stringify(n));
+      const clean = (x) => {
+        const { pendingChange, ...rest } = x; // исправления из файла не переносим — только сами записи
+        return JSON.stringify(rest);
+      };
+      for (const e of s.entries) q('INSERT INTO entries (id, worker_id, date, data) VALUES (?, ?, ?, ?)').run(e.id, e.workerId, e.date, clean(e));
+      for (const n of notes) q('INSERT INTO notes (id, worker_id, date, data) VALUES (?, ?, ?, ?)').run(n.id, n.workerId, n.date, clean(n));
       if (isObj(s.overviewRates)) kvSet('overviewRates', s.overviewRates);
       kvSet('selfWorkerId', isId(s.selfWorkerId) ? s.selfWorkerId : null);
     });

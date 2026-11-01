@@ -9,6 +9,7 @@ type Props = {
   knownLocations: string[];
   defaults: { hourly: number; perKm: number; km: number };
   showRates?: boolean; // менять ставки может только администратор; работник их только видит
+  notice?: string; // подсказка сверху формы (непроверенное исправление)
   initialDate?: string; // дата новой записи (при нажатии на день в ленте)
   onCancel: () => void;
   onSave: (data: Omit<Entry, 'id' | 'workerId'>) => void;
@@ -19,6 +20,7 @@ type Props = {
 export function EntryForm({
   worker,
   existing,
+  notice,
   initialDate,
   knownLocations,
   defaults,
@@ -120,6 +122,7 @@ export function EntryForm({
       <div className="form-sub">{worker.name}</div>
 
       <div className="form">
+        {notice && <div className="form-hint pending-hint">{notice}</div>}
         <label className="field">
           <span>Дата</span>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />

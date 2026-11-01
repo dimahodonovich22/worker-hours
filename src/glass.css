@@ -856,3 +856,240 @@ button.danger {
 .pay-rate-static:active {
   background: rgba(0, 104, 224, 0.13);
 }
+
+/* ---------- Исправления работников, ждущие проверки ---------- */
+
+.pending-banner {
+  width: 100%;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(255, 149, 0, 0.16);
+  color: #7a3d00;
+}
+.pending-banner b {
+  flex-shrink: 0;
+  background: #e07800;
+  color: #fff;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 14px;
+}
+.feed-pending {
+  flex-shrink: 0;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #f08a00;
+}
+.pending-tag {
+  color: #a35200 !important;
+  font-weight: 600;
+}
+.pending-hint {
+  background: rgba(255, 149, 0, 0.14);
+  color: #7a3d00;
+}
+.change-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+.change-head {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.change-head b {
+  font-size: 15px;
+}
+.change-head span {
+  font-size: 14px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.change-head small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.change-line {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 1px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+/* Название строки сверху, под ним «было → стало» */
+.change-label {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--muted);
+}
+.change-from {
+  color: var(--muted);
+  text-decoration: line-through;
+  overflow-wrap: anywhere;
+}
+.change-arrow {
+  color: var(--muted);
+}
+.change-to {
+  font-weight: 700;
+  color: #a35200;
+  overflow-wrap: anywhere;
+}
+.change-card .multi-row button {
+  width: 100%;
+  padding: 11px 14px;
+}
+
+/* ---------- Окно итогов: листание и «Мой заработок» ---------- */
+
+.feed-sheet .sheet-title:has(.period-head) {
+  padding-bottom: 4px;
+}
+.period-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.period-head-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+}
+.earn-toggle {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(47, 179, 80, 0.16);
+  color: var(--money);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.earn-toggle.on {
+  background: rgba(118, 118, 128, 0.15);
+  color: var(--text);
+}
+.period-nav {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 4px;
+}
+.period-nav span {
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.period-arrow {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(118, 118, 128, 0.14);
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.period-arrow:active {
+  background: rgba(118, 118, 128, 0.26);
+}
+
+.earn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+.earn-net {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(47, 179, 80, 0.15);
+  text-align: center;
+}
+.earn-net span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.earn-net b {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--money);
+  font-variant-numeric: tabular-nums;
+}
+.earn-net small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.earn-block,
+.earn-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(118, 118, 128, 0.12);
+}
+.earn-title {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.earn-title b {
+  color: var(--money);
+}
+.earn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.earn-row b {
+  color: var(--money);
+  white-space: nowrap;
+}
+.earn-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.earn-worker + .earn-worker {
+  border-top: 0.5px solid var(--border);
+  padding-top: 6px;
+}
+.earn-sub,
+.earn-muted {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.earn-foot .earn-row b {
+  color: var(--accent);
+}

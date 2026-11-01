@@ -1,10 +1,27 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { AppState, Entry, FeedFilter, Note, Session } from '../types';
 import { shiftMonth, ymd } from '../calc';
-import { daysOfRange, filterWorkerId, groupByDate, invoiceTotals, monthDiff, sumDays } from '../feedModel';
+import {
+  computeEarnings,
+  daysOfRange,
+  filterWorkerId,
+  groupByDate,
+  invoiceTotals,
+  monthDiff,
+  shiftRequest,
+  sumDays,
+} from '../feedModel';
 import { weekStartFromDateStr } from '../calc';
 import { MonthSection, type PeriodRequest } from '../components/feed/MonthSection';
-import { DaySheet, MenuSheet, PeriodSheet, PickWorkerSheet, SwitcherSheet } from '../components/feed/FeedSheets';
+import {
+  ChangesSheet,
+  DaySheet,
+  MenuSheet,
+  PeriodSheet,
+  PickWorkerSheet,
+  SwitcherSheet,
+} from '../components/feed/FeedSheets';
+import { pendingItems } from '../changes';
 import { downloadBackup, readBackup } from '../backup';
 import { Icon } from '../components/Icon';
 import '../feed.css';
@@ -25,6 +42,7 @@ type Props = {
   onOpenSummary: () => void;
   onImport: (s: AppState) => void;
   onSetRates: (r: { hourly: number; perKm: number }) => void;
+  onReview: (kind: 'entries' | 'notes', id: string, action: 'approve' | 'reject') => void;
 };
 
 type Sheet =
@@ -33,7 +51,8 @@ type Sheet =
   | { kind: 'menu' }
   | { kind: 'day'; date: string }
   | { kind: 'period'; req: PeriodRequest }
-  | { kind: 'pickWorker'; date: string; what: 'entry' | 'note' };
+  | { kind: 'pickWorker'; date: string; what: 'entry' | 'note' }
+  | { kind: 'changes' };
 
 type Jump = { date: string; smooth: boolean; flash: boolean };
 
@@ -74,15 +93,28 @@ export function CalendarFeed(props: Props) {
   const workersById = useMemo(() => new Map(state.workers.map((w) => [w.id, w])), [state.workers]);
   const visibleEntries = useMemo(
     () =>
-      workerFilter === null ? [] : workerFilter === undefined ? state.entries : state.entries.filter((e) => e.workerId === workerFilter),
+      workerFilter === null
+        ? []
+        : workerFilter === undefined
+          ? state.entries
+          : state.entries.filter((e) => e.workerId === workerFilter),
     [state.entries, workerFilter],
   );
   const visibleNotes = useMemo(
     () =>
-      workerFilter === null ? [] : workerFilter === undefined ? state.notes : state.notes.filter((n) => n.workerId === workerFilter),
+      workerFilter === null
+        ? []
+        : workerFilter === undefined
+          ? state.notes
+          : state.notes.filter((n) => n.workerId === workerFilter),
     [state.notes, workerFilter],
   );
   const entriesByDate = useMemo(() => groupByDate(visibleEntries), [visibleEntries]);
+  // Исправления работников, ждущие решения администратора (по всем работникам).
+  const pending = useMemo(
+    () => (isAdmin ? pendingItems(state.entries, state.notes) : []),
+    [isAdmin, state.entries, state.notes],
+  );
   const notesByDate = useMemo(() => groupByDate(visibleNotes), [visibleNotes]);
 
   /* ---------- Какие месяцы показывать ---------- */
@@ -106,10 +138,7 @@ export function CalendarFeed(props: Props) {
   const count = Math.min(loaded, totalMonths);
   const hasMore = count < totalMonths;
   // Сверху — текущий месяц, ниже — прошлые.
-  const months = useMemo(
-    () => Array.from({ length: count }, (_, i) => shiftMonth(lastMonth, -i)),
-    [count, lastMonth],
-  );
+  const months = useMemo(() => Array.from({ length: count }, (_, i) => shiftMonth(lastMonth, -i)), [count, lastMonth]);
   // Будущие недели не показываем: лента начинается с текущей недели
   // (или с недели самой поздней записи, если она в будущем).
   const lastWeekStart = useMemo(() => {
@@ -298,6 +327,16 @@ export function CalendarFeed(props: Props) {
         </button>
       </header>
 
+      {pending.length > 0 && (
+        <button className="feed-banner pending-banner" onClick={() => setSheet({ kind: 'changes' })}>
+          <span>
+            {pending.length === 1 ? 'Исправление работника ждёт' : `Исправлений работников: ${pending.length} — ждут`}{' '}
+            проверки
+          </span>
+          <b>Проверить</b>
+        </button>
+      )}
+
       {!isAdmin ? null : state.workers.length === 0 ? (
         <div className="feed-banner">
           <span>Добавьте первого работника (или себя), чтобы начать записывать часы.</span>
@@ -419,6 +458,15 @@ export function CalendarFeed(props: Props) {
         />
       )}
 
+      {sheet?.kind === 'changes' && (
+        <ChangesSheet
+          items={pending}
+          workersById={workersById}
+          onReview={props.onReview}
+          onClose={() => setSheet(null)}
+        />
+      )}
+
       {sheet?.kind === 'day' && (
         <DaySheet
           date={sheet.date}
@@ -427,6 +475,7 @@ export function CalendarFeed(props: Props) {
           workersById={workersById}
           showNames={showNames}
           rates={rates}
+          isAdmin={isAdmin}
           onEditEntry={(e) => leave(() => props.onEditEntry(e))}
           onEditNote={(n) => leave(() => props.onEditNote(n))}
           onAddEntry={() => startAdd(sheet.date, 'entry')}
@@ -446,6 +495,20 @@ export function CalendarFeed(props: Props) {
               team={workerFilter === undefined}
               rates={rates}
               onEditRate={isAdmin ? askRate : undefined}
+              onShift={(dir) => setSheet({ kind: 'period', req: shiftRequest(sheet.req, dir) })}
+              earnings={
+                rates
+                  ? computeEarnings(
+                      sheet.req.start,
+                      sheet.req.end,
+                      state.entries,
+                      state.notes,
+                      state.workers,
+                      state.selfWorkerId,
+                      rates,
+                    )
+                  : null
+              }
               ownRate={isAdmin ? null : ownRate(sheet.req)}
               onOpenWorker={(id) =>
                 leave(() => {

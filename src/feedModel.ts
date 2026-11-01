@@ -1,6 +1,16 @@
 // Модель ленты месяцев: недели, номера недель, фильтр по людям, итоги за дни.
 import type { Entry, FeedFilter, Note, Worker } from './types';
-import { entryHours, entryPay, isPayExpense, noteEffectiveAmount, weekEnd, weekStartFromDateStr } from './calc';
+import {
+  ddmm,
+  entryHours,
+  entryPay,
+  isPayExpense,
+  noteEffectiveAmount,
+  shiftDate,
+  shiftMonth,
+  weekEnd,
+  weekStartFromDateStr,
+} from './calc';
 
 export const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 export const MONTHS_NOM = [
@@ -161,4 +171,96 @@ export function entryInvoicePay(e: Entry, rates: Rates): number {
 /** Локации записи одной строкой: «Гент + Антверпен». */
 export function entryLocations(e: Entry): string {
   return [e.location, ...(e.extraSegments?.map((s) => s.location) ?? [])].join(' + ');
+}
+
+/* ---------- Период для окна итогов (неделя или месяц) ---------- */
+
+export type PeriodRequest = {
+  kind: 'week' | 'month';
+  start: string;
+  end: string;
+  title: string;
+};
+
+/** «Неделя 44 · 26.10–01.11» (коротко, если неделя внутри одного месяца: «19–25.10»). */
+export function weekRequest(weekStart: string): PeriodRequest {
+  const end = weekEnd(weekStart);
+  const range =
+    weekStart.slice(5, 7) === end.slice(5, 7) ? `${weekStart.slice(8)}–${ddmm(end)}` : `${ddmm(weekStart)}–${ddmm(end)}`;
+  return { kind: 'week', start: weekStart, end, title: `Неделя ${isoWeek(weekStart)} · ${range}` };
+}
+
+export function monthRequest(monthKey: string): PeriodRequest {
+  const [y, m] = monthKey.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return {
+    kind: 'month',
+    start: `${monthKey}-01`,
+    end: `${monthKey}-${String(last).padStart(2, '0')}`,
+    title: `${MONTHS_NOM[m - 1]} ${y}`,
+  };
+}
+
+/** Соседняя неделя или месяц (стрелки ‹ › в окне итогов). */
+export function shiftRequest(req: PeriodRequest, dir: 1 | -1): PeriodRequest {
+  return req.kind === 'week' ? weekRequest(shiftDate(req.start, 7 * dir)) : monthRequest(shiftMonth(req.start.slice(0, 7), dir));
+}
+
+/* ---------- Мой заработок (только администратор) ---------- */
+
+export type WorkerEarning = {
+  worker: Worker;
+  days: number;
+  hours: number;
+  km: number;
+  invoice: number; // часы и км работника по ставке фактуры
+  paid: number; // сколько платим работнику (по ставкам в его записях)
+  margin: number; // invoice − paid
+};
+
+export type Earnings = {
+  self: WorkerEarning | null; // моя работа (invoice = мой заработок за свои часы)
+  others: WorkerEarning[]; // работники и маржа с них
+  margin: number; // моя маржа со всех работников
+  net: number; // мой чистый заработок = моя работа + маржа
+  expenses: number; // расходы по работе — возмещаются, в заработок не входят
+  invoiceTotal: number; // вся фактура клиенту: все часы и км + расходы
+};
+
+export function computeEarnings(
+  start: string,
+  end: string,
+  entries: Entry[],
+  notes: Note[],
+  workers: Worker[],
+  selfWorkerId: string | undefined,
+  rates: Rates,
+): Earnings {
+  const rows: WorkerEarning[] = [];
+  let expenses = 0;
+  for (const w of workers) {
+    const es = entries.filter((e) => e.workerId === w.id && e.date >= start && e.date <= end);
+    let hours = 0;
+    let km = 0;
+    let paid = 0;
+    for (const e of es) {
+      hours += entryHours(e);
+      km += e.km || 0;
+      paid += entryPay(e, w);
+    }
+    for (const n of notes) {
+      if (n.workerId === w.id && n.date >= start && n.date <= end && isPayExpense(n)) expenses += noteEffectiveAmount(n);
+    }
+    if (es.length === 0) continue;
+    hours = round2(hours);
+    km = round2(km);
+    const invoice = round2(round2(hours * rates.hourly) + round2(km * rates.perKm));
+    paid = round2(paid);
+    rows.push({ worker: w, days: new Set(es.map((e) => e.date)).size, hours, km, invoice, paid, margin: round2(invoice - paid) });
+  }
+  const self = rows.find((r) => r.worker.id === selfWorkerId) ?? null;
+  const others = rows.filter((r) => r !== self);
+  const margin = round2(others.reduce((s, r) => s + r.margin, 0));
+  const invoiceTotal = round2(rows.reduce((s, r) => s + r.invoice, 0) + expenses);
+  return { self, others, margin, net: round2((self?.invoice ?? 0) + margin), expenses: round2(expenses), invoiceTotal };
 }
