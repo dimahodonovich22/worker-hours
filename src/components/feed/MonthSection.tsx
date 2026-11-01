@@ -71,7 +71,7 @@ export const MonthSection = memo(function MonthSection({
         <span className="feed-sum">{totalsLabel(monthTotal)}</span>
       </button>
 
-      {/* Недели — новые сверху, прошлые ниже; дни внутри недели — Пн→Вс */}
+      {/* Недели — новые сверху, прошлые ниже */}
       {parts
         .map((p, i) => ({ p, i }))
         .filter(({ p }) => p.weekStart <= lastWeekStart)
@@ -112,7 +112,8 @@ export const MonthSection = memo(function MonthSection({
                   <span className="feed-week-cont">итог выше ↑</span>
                 )}
               </button>
-              {p.days.map((ds) => (
+              {/* Дни снизу вверх: понедельник внизу, воскресенье сверху — как и вся лента (новое сверху) */}
+            {[...p.days].reverse().map((ds) => (
                 <DayRow
                   key={ds}
                   ds={ds}
