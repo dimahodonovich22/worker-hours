@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { AppState, Entry, FeedFilter, Note } from '../types';
+import type { AppState, Entry, FeedFilter, Note, PayMode } from '../types';
 import { shiftMonth, ymd } from '../calc';
-import { daysOfRange, filterWorkerId, groupByDate, monthDiff, sumDays } from '../feedModel';
+import { applyPayMode, daysOfRange, filterWorkerId, groupByDate, monthDiff, sumDays } from '../feedModel';
 import { weekStartFromDateStr } from '../calc';
 import { MonthSection, type PeriodRequest } from '../components/feed/MonthSection';
 import { DaySheet, MenuSheet, PeriodSheet, PickWorkerSheet, SwitcherSheet } from '../components/feed/FeedSheets';
@@ -22,6 +22,8 @@ type Props = {
   onEditWorker: (workerId: string) => void;
   onOpenSummary: () => void;
   onImport: (s: AppState) => void;
+  onSetPayMode: (m: PayMode) => void;
+  onSetRates: (r: { hourly: number; perKm: number }) => void;
 };
 
 type Sheet =
@@ -45,6 +47,11 @@ export function CalendarFeed(props: Props) {
   const filter: FeedFilter = state.feedFilter ?? (state.selfWorkerId ? { kind: 'me' } : { kind: 'all' });
   const workerFilter = filterWorkerId(filter, state.selfWorkerId);
   const showNames = workerFilter === undefined;
+  const payMode: PayMode = state.feedPayMode ?? 'entries';
+  const rates = useMemo(
+    () => ({ hourly: state.overviewRates?.hourly ?? 0, perKm: state.overviewRates?.perKm ?? 0 }),
+    [state.overviewRates],
+  );
   const today = ymd(new Date());
   const thisMonth = today.slice(0, 7);
 
@@ -210,10 +217,24 @@ export function CalendarFeed(props: Props) {
       .map((w) => {
         const es = state.entries.filter((e) => e.workerId === w.id && e.date >= req.start && e.date <= req.end);
         const ns = state.notes.filter((n) => n.workerId === w.id && n.date >= req.start && n.date <= req.end);
-        return { worker: w, t: sumDays(days, groupByDate(es), groupByDate(ns), workersById) };
+        return { worker: w, t: applyPayMode(sumDays(days, groupByDate(es), groupByDate(ns), workersById), payMode, rates) };
       })
       .filter((r) => workerFilter !== undefined || r.t.count > 0 || r.t.pay > 0);
-    return { rows, total: sumDays(days, entriesByDate, notesByDate, workersById) };
+    return { rows, total: applyPayMode(sumDays(days, entriesByDate, notesByDate, workersById), payMode, rates) };
+  }
+
+  // Ставка фактуры — та же, что в «Сводке» (нажатие на ячейки «ч» / «км»).
+  function askRate(which: 'hourly' | 'perKm') {
+    const label = which === 'hourly' ? 'Ставка фактуры, € за час' : 'Ставка фактуры, € за км';
+    const current = rates[which];
+    const input = prompt(label, current ? String(current) : '');
+    if (input === null) return;
+    const val = parseFloat(input.replace(',', '.'));
+    if (Number.isNaN(val) || val < 0) {
+      alert('Введите число, например 25 или 0,2');
+      return;
+    }
+    props.onSetRates({ ...rates, [which]: val });
   }
 
   const filterLabel =
@@ -271,6 +292,8 @@ export function CalendarFeed(props: Props) {
           today={today}
           isLastMonth={mk === lastMonth}
           lastWeekStart={lastWeekStart}
+          payMode={payMode}
+          rates={rates}
           onDay={onDay}
           onPeriod={onPeriod}
         />
@@ -384,6 +407,10 @@ export function CalendarFeed(props: Props) {
               rows={rows}
               total={total}
               team={workerFilter === undefined}
+              payMode={payMode}
+              rates={rates}
+              onSetPayMode={props.onSetPayMode}
+              onEditRate={askRate}
               onOpenWorker={(id) => leave(() => props.onOpenWorkerPeriod(id, sheet.req))}
               onClose={() => setSheet(null)}
             />

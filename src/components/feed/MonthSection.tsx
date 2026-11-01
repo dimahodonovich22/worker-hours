@@ -1,8 +1,9 @@
 import { memo, useMemo } from 'react';
-import type { Entry, Note, Worker } from '../../types';
+import type { Entry, Note, PayMode, Worker } from '../../types';
 import { Icon } from '../Icon';
 import { ddmm, entryHours, formatNum, noteEffectiveAmount } from '../../calc';
 import {
+  applyPayMode,
   MONTHS_NOM,
   WEEKDAYS,
   daysOfRange,
@@ -12,6 +13,7 @@ import {
   sumDays,
   weekdayIndex,
   type DayTotals,
+  type Rates,
 } from '../../feedModel';
 
 export type PeriodRequest = {
@@ -30,6 +32,8 @@ type Props = {
   today: string;
   isLastMonth: boolean; // самый новый месяц ленты — его последнюю неделю подытоживаем здесь
   lastWeekStart: string; // недели позже этой (будущие) не показываем
+  payMode: PayMode; // как считать суммы недель и месяца
+  rates: Rates;     // ставка фактуры (для payMode = 'invoice')
   onDay: (date: string) => void;
   onPeriod: (req: PeriodRequest) => void;
 };
@@ -49,6 +53,8 @@ export const MonthSection = memo(function MonthSection({
   today,
   isLastMonth,
   lastWeekStart,
+  payMode,
+  rates,
   onDay,
   onPeriod,
 }: Props) {
@@ -57,7 +63,8 @@ export const MonthSection = memo(function MonthSection({
   const [y, m] = monthKey.split('-').map(Number);
   const title = `${MONTHS_NOM[m - 1]} ${y}`;
   // Итог месяца — только дни этого месяца (неделя на стыке делится, без дублей).
-  const monthTotal = sumDays(monthDays, entriesByDate, notesByDate, workersById);
+  const monthTotal = applyPayMode(sumDays(monthDays, entriesByDate, notesByDate, workersById), payMode, rates);
+  const sumClass = `feed-sum${payMode === 'invoice' ? ' invoice' : ''}`;
 
   return (
     <section className="feed-month" id={`month-${monthKey}`}>
@@ -68,7 +75,7 @@ export const MonthSection = memo(function MonthSection({
         }
       >
         <span className="feed-month-title">{title}</span>
-        <span className="feed-sum">{totalsLabel(monthTotal)}</span>
+        <span className={sumClass}>{totalsLabel(monthTotal)}</span>
       </button>
 
       {/* Недели — новые сверху, прошлые ниже */}
@@ -87,7 +94,11 @@ export const MonthSection = memo(function MonthSection({
           // (или в самом новом месяце, если неделя уходит в будущий месяц).
           const showTotals = p.hasWeekEnd || (isLastMonth && i === parts.length - 1);
           const weekTotal = showTotals
-            ? sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById)
+            ? applyPayMode(
+                sumDays(daysOfRange(p.weekStart, p.weekEnd), entriesByDate, notesByDate, workersById),
+                payMode,
+                rates,
+              )
             : null;
           return (
             <div className="feed-week" key={p.weekStart}>
@@ -107,7 +118,7 @@ export const MonthSection = memo(function MonthSection({
                   <span className="feed-week-range">{range}</span>
                 </span>
                 {weekTotal ? (
-                  <span className="feed-sum">{totalsLabel(weekTotal)}</span>
+                  <span className={sumClass}>{totalsLabel(weekTotal)}</span>
                 ) : (
                   <span className="feed-week-cont">итог выше ↑</span>
                 )}

@@ -1,5 +1,5 @@
 // Модель ленты месяцев: недели, номера недель, фильтр по людям, итоги за дни.
-import type { Entry, FeedFilter, Note, Worker } from './types';
+import type { Entry, FeedFilter, Note, PayMode, Worker } from './types';
 import { entryHours, entryPay, isPayExpense, noteEffectiveAmount, weekEnd, weekStartFromDateStr } from './calc';
 
 export const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -140,6 +140,18 @@ export function sumDays(
     pay: round2(work + expenses),
     count,
   };
+}
+
+export type Rates = { hourly: number; perKm: number };
+
+/**
+ * Сумма по выбранному способу. «По ставке фактуры» — все часы и км по одной ставке
+ * (как плашка «Всего» в «Сводке»), расходы по работе прибавляются в обоих случаях.
+ */
+export function applyPayMode(t: DayTotals, mode: PayMode, rates: Rates): DayTotals {
+  if (mode !== 'invoice') return t;
+  const work = round2(round2(t.hours * rates.hourly) + round2(t.km * rates.perKm));
+  return { ...t, work, pay: round2(work + t.expenses) };
 }
 
 /** Локации записи одной строкой: «Гент + Антверпен». */

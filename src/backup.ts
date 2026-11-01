@@ -30,6 +30,7 @@ export function readBackup(file: File, onImport: (state: AppState) => void): voi
         overviewRates: parsed.overviewRates,
         selfWorkerId: parsed.selfWorkerId,
         feedFilter: parsed.feedFilter,
+        feedPayMode: parsed.feedPayMode,
       });
     } catch {
       alert('Не удалось прочитать файл');

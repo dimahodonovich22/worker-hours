@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AppState, Entry, FeedFilter, Note, PeriodView, Worker } from './types';
+import type { AppState, Entry, FeedFilter, Note, PayMode, PeriodView, Worker } from './types';
 import { loadState, saveState, uid } from './storage';
 import { currentMonthKey, currentWeekStart, isPayExpense, periodBounds, weekEnd, ymd } from './calc';
 import { CalendarFeed } from './screens/CalendarFeed';
@@ -109,6 +109,10 @@ export function App() {
     setState((s) => ({ ...s, feedFilter: f }));
   }
 
+  function setPayMode(m: PayMode) {
+    setState((s) => ({ ...s, feedPayMode: m }));
+  }
+
   function setSelf(workerId: string) {
     setState((s) => ({ ...s, selfWorkerId: workerId, feedFilter: { kind: 'me' } }));
   }
@@ -138,6 +142,8 @@ export function App() {
         onEditWorker={(id) => push({ name: 'workerForm', workerId: id })}
         onOpenSummary={() => push({ name: 'summary' })}
         onImport={importState}
+        onSetPayMode={setPayMode}
+        onSetRates={setOverviewRates}
       />
     );
   }

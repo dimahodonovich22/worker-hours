@@ -617,6 +617,54 @@ button.danger {
   color: var(--accent);
 }
 
+/* ---------- Способ подсчёта суммы (окно итога недели / месяца) ---------- */
+/* Зелёные суммы — по ставкам в записях, синие — по ставке фактуры */
+.feed-sum.invoice,
+.sum-pay.invoice,
+.period-total b.invoice {
+  color: var(--accent);
+}
+.pay-mode-switch {
+  margin: 0 0 2px;
+}
+.period-total.invoice {
+  background: rgba(0, 104, 224, 0.12);
+}
+.pay-mode-switch .period-tab {
+  font-size: 13px;
+  padding: 9px 6px;
+  color: var(--muted);
+}
+.pay-mode-switch .period-tab.on {
+  color: var(--text);
+}
+.pay-rates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pay-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 11px;
+  background: rgba(0, 104, 224, 0.13);
+  color: var(--accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.pay-rate:active {
+  background: rgba(0, 104, 224, 0.22);
+}
+
 @keyframes glassFade {
   from { opacity: 0; }
   to { opacity: 1; }

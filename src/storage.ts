@@ -16,6 +16,7 @@ export function loadState(): AppState {
       overviewRates: parsed.overviewRates,
       selfWorkerId: parsed.selfWorkerId,
       feedFilter: parsed.feedFilter,
+      feedPayMode: parsed.feedPayMode,
     };
   } catch {
     return { workers: [], entries: [], notes: [] };
