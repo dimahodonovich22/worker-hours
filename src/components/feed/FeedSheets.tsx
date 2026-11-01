@@ -342,6 +342,7 @@ type PeriodProps = {
   total: DayTotals;
   team: boolean; // режим «Все работники»
   rates: Rates | null;
+  ownRate?: Rates | null; // работник: его ставка (только показать)
   onEditRate?: (which: "hourly" | "perKm") => void;
   onOpenWorker: (workerId: string) => void;
   onClose: () => void;
@@ -353,6 +354,13 @@ export function PeriodSheet(p: PeriodProps) {
   return (
     <Sheet title={p.req.title} onClose={p.onClose}>
       {/* У администратора суммы — по ставке фактуры; её можно изменить здесь. У работника блока нет. */}
+      {!p.rates && p.ownRate && (
+        <div className="pay-rates">
+          <span>Ваша ставка:</span>
+          <span className="pay-rate pay-rate-static">€{formatNum(p.ownRate.hourly)}/ч</span>
+          <span className="pay-rate pay-rate-static">€{formatNum(p.ownRate.perKm)}/км</span>
+        </div>
+      )}
       {p.rates && p.onEditRate && (
         <div className="pay-rates">
           <span>Ставка фактуры:</span>

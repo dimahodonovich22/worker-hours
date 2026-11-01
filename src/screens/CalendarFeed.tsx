@@ -234,6 +234,15 @@ export function CalendarFeed(props: Props) {
     return { rows, total: withRates(sumDays(days, entriesByDate, notesByDate, workersById)) };
   }
 
+  /** Ставка работника: из его последней записи за этот период (или вообще последней). */
+  function ownRate(req: PeriodRequest) {
+    const mine = [...visibleEntries].sort((a, b) => (a.date < b.date ? 1 : -1));
+    const e = mine.find((x) => x.date >= req.start && x.date <= req.end) ?? mine[0];
+    const w = state.workers[0];
+    if (!e && !w) return null;
+    return { hourly: e?.hourly ?? w?.hourly ?? 0, perKm: e?.perKm ?? w?.perKm ?? 0 };
+  }
+
   function withRates(t: ReturnType<typeof sumDays>) {
     return rates ? invoiceTotals(t, rates) : t;
   }
@@ -437,6 +446,7 @@ export function CalendarFeed(props: Props) {
               team={workerFilter === undefined}
               rates={rates}
               onEditRate={isAdmin ? askRate : undefined}
+              ownRate={isAdmin ? null : ownRate(sheet.req)}
               onOpenWorker={(id) =>
                 leave(() => {
                   memory.reopen = { kind: 'period', req: sheet.req };

@@ -8,7 +8,7 @@ type Props = {
   existing?: Entry;
   knownLocations: string[];
   defaults: { hourly: number; perKm: number; km: number };
-  showRates?: boolean; // ставки видит и меняет только администратор
+  showRates?: boolean; // менять ставки может только администратор; работник их только видит
   initialDate?: string; // дата новой записи (при нажатии на день в ленте)
   onCancel: () => void;
   onSave: (data: Omit<Entry, 'id' | 'workerId'>) => void;
@@ -231,7 +231,7 @@ export function EntryForm({
           />
         </label>
 
-        {showRates && (
+        {showRates ? (
           <div className="field-row">
             <label className="field">
               <span>Ставка €/ч</span>
@@ -251,6 +251,21 @@ export function EntryForm({
                 onChange={(e) => setPerKm(e.target.value)}
               />
             </label>
+          </div>
+        ) : (
+          // Работник видит свою ставку, но изменить её не может (и сервер это не позволит).
+          <div className="field">
+            <div className="field-row">
+              <div className="field">
+                <span>Ставка €/ч</span>
+                <div className="field-static">€{formatNum(num(hourly))}</div>
+              </div>
+              <div className="field">
+                <span>Ставка €/км</span>
+                <div className="field-static">€{formatNum(num(perKm))}</div>
+              </div>
+            </div>
+            <div className="field-note">Ставку меняет только администратор</div>
           </div>
         )}
 
