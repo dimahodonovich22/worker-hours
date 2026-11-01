@@ -169,25 +169,17 @@ function DayRow({ ds, entries = [], notes = [], workersById, showNames, isToday,
         {entries.length === 0 && notes.length === 0 && (
           <span className="feed-day-empty">{weekend ? 'выходной' : '—'}</span>
         )}
-        {entries.map((e) => {
-          const mult = e.multiplier && e.multiplier !== 1 ? e.multiplier : null;
-          return (
-            <span className="feed-entry" key={e.id}>
-              <span className="feed-line">
-                {/* Длинное название сокращается «…», имя работника видно всегда */}
-                <span className="feed-obj">
-                  <span className="feed-loc">{entryLocations(e)}</span>
-                  {who(e.workerId)}
-                </span>
-                <span className="feed-km">{e.km ? `${formatNum(e.km)} км` : ''}</span>
-                {/* Коэффициент часов — небольшое место между км и часами */}
-                <span className="feed-mult">{mult && <b>×{formatNum(mult)}</b>}</span>
-                <span className="feed-hours">{formatNum(entryHours(e))} ч</span>
-              </span>
-              {!e.lunch && <span className="feed-flag">без обеда</span>}
+        {entries.map((e) => (
+          <span className="feed-line" key={e.id}>
+            {/* Длинное название сокращается «…», имя работника видно всегда */}
+            <span className="feed-obj">
+              <span className="feed-loc">{entryLocations(e)}</span>
+              {who(e.workerId)}
             </span>
-          );
-        })}
+            <span className="feed-km">{e.km ? `${formatNum(e.km)} км` : ''}</span>
+            <span className="feed-hours">{formatNum(entryHours(e))} ч</span>
+          </span>
+        ))}
         {notes.map((n) => (
           <span className={`feed-note ${n.direction}`} key={n.id}>
             <span className="feed-obj">
