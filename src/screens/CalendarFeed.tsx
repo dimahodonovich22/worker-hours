@@ -39,7 +39,13 @@ const MONTHS_PER_LOAD = 3;
 
 // Позиция прокрутки и подгруженные месяцы сохраняются, когда уходим на другой экран
 // (запись, работник…) — при возврате лента открывается там же, где была.
-const memory = { scrollY: null as number | null, loaded: MONTHS_PER_LOAD, floor: null as string | null };
+// reopen — окно, которое снова открыть при возврате (итоги недели после экрана работника).
+const memory = {
+  scrollY: null as number | null,
+  loaded: MONTHS_PER_LOAD,
+  floor: null as string | null,
+  reopen: null as Sheet | null,
+};
 
 export function CalendarFeed(props: Props) {
   const { state } = props;
@@ -53,7 +59,10 @@ export function CalendarFeed(props: Props) {
   const today = ymd(new Date());
   const thisMonth = today.slice(0, 7);
 
-  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(() => memory.reopen);
+  useEffect(() => {
+    memory.reopen = null;
+  }, []);
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ---------- Данные для выбранного режима ---------- */
@@ -407,7 +416,12 @@ export function CalendarFeed(props: Props) {
               team={workerFilter === undefined}
               rates={rates}
               onEditRate={askRate}
-              onOpenWorker={(id) => leave(() => props.onOpenWorkerPeriod(id, sheet.req))}
+              onOpenWorker={(id) =>
+                leave(() => {
+                  memory.reopen = { kind: 'period', req: sheet.req };
+                  props.onOpenWorkerPeriod(id, sheet.req);
+                })
+              }
               onClose={() => setSheet(null)}
             />
           );
