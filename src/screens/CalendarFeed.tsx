@@ -257,9 +257,11 @@ export function CalendarFeed(props: Props) {
       .map((w) => {
         const es = state.entries.filter((e) => e.workerId === w.id && e.date >= req.start && e.date <= req.end);
         const ns = state.notes.filter((n) => n.workerId === w.id && n.date >= req.start && n.date <= req.end);
-        return { worker: w, t: withRates(sumDays(days, groupByDate(es), groupByDate(ns), workersById)) };
+        // Каждый человек — по своей ставке из записей (сколько получает он сам).
+        return { worker: w, t: sumDays(days, groupByDate(es), groupByDate(ns), workersById) };
       })
       .filter((r) => workerFilter !== undefined || r.t.count > 0 || r.t.pay > 0);
+    // «Вся команда» — по ставке фактуры: сколько администратор получает за всех.
     return { rows, total: withRates(sumDays(days, entriesByDate, notesByDate, workersById)) };
   }
 

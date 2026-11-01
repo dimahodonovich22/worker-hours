@@ -371,6 +371,9 @@ export function PeriodSheet(p: PeriodProps) {
           </span>
         </div>
       )}
+      {p.team && p.rates && p.rows.length > 0 && (
+        <div className="period-split-label">Каждый — по своей ставке</div>
+      )}
       <div className="sheet-list">
         {p.rows.map(({ worker, t }) => (
           <button key={worker.id} className="sum-row" onClick={() => p.onOpenWorker(worker.id)}>
