@@ -5,6 +5,7 @@ import { entryHours, entryPay, formatNum, isPayExpense, noteEffectiveAmount } fr
 import {
   entryInvoicePay,
   entryLocations,
+  WEEKDAYS,
   weekdayIndex,
   type DayTotals,
   type Earnings,
@@ -36,6 +37,7 @@ type SwitcherProps = {
   workers: Worker[];
   filter: FeedFilter;
   selfWorkerId?: string;
+  canManage: boolean; // администратор: настройки работников, «кто я», добавить работника
   onPick: (f: FeedFilter) => void;
   onChangeSelf: () => void;
   onAddWorker: () => void;
@@ -53,15 +55,19 @@ export function SwitcherSheet(p: SwitcherProps) {
   return (
     <Sheet title="Чьи часы показывать" onClose={p.onClose}>
       <div className="sheet-list">
-        <div className="pick-row-wrap">
-          <button className={`pick-row ${isOn({ kind: 'me' }) ? 'on' : ''}`} onClick={() => p.onPick({ kind: 'me' })}>
-            <span>Мои часы {self && <small>· {self.name}</small>}</span>
-            <span>{mark(isOn({ kind: 'me' }))}</span>
-          </button>
-          <button className="pick-side" onClick={p.onChangeSelf} aria-label="Кто из работников — я">
-            <Icon name="userCheck" size={18} />
-          </button>
-        </div>
+        {(p.canManage || self) && (
+          <div className="pick-row-wrap">
+            <button className={`pick-row ${isOn({ kind: 'me' }) ? 'on' : ''}`} onClick={() => p.onPick({ kind: 'me' })}>
+              <span>Мои часы {self && <small>· {self.name}</small>}</span>
+              <span>{mark(isOn({ kind: 'me' }))}</span>
+            </button>
+            {p.canManage && (
+              <button className="pick-side" onClick={p.onChangeSelf} aria-label="Кто из работников — я">
+                <Icon name="userCheck" size={18} />
+              </button>
+            )}
+          </div>
+        )}
         <button className={`pick-row ${isOn({ kind: 'all' }) ? 'on' : ''}`} onClick={() => p.onPick({ kind: 'all' })}>
           <span>Все работники</span>
           <span>{mark(isOn({ kind: 'all' }))}</span>
@@ -76,16 +82,20 @@ export function SwitcherSheet(p: SwitcherProps) {
                 </span>
                 <span>{mark(isOn(f))}</span>
               </button>
-              <button className="pick-side" onClick={() => p.onEditWorker(w.id)} aria-label="Настройки работника">
-                <Icon name="pencil" size={17} />
-              </button>
+              {p.canManage && (
+                <button className="pick-side" onClick={() => p.onEditWorker(w.id)} aria-label="Настройки работника">
+                  <Icon name="pencil" size={17} />
+                </button>
+              )}
             </div>
           );
         })}
       </div>
-      <button className="ghost" onClick={p.onAddWorker}>
-        + Добавить работника
-      </button>
+      {p.canManage && (
+        <button className="ghost" onClick={p.onAddWorker}>
+          + Добавить работника
+        </button>
+      )}
     </Sheet>
   );
 }
@@ -190,6 +200,7 @@ type DayProps = {
   showNames: boolean;
   rates: Rates | null; // ставка фактуры (администратор); null — по ставке в записи (работник)
   isAdmin: boolean;
+  login: string;
   onEditEntry: (e: Entry) => void;
   onEditNote: (n: Note) => void;
   onAddEntry: () => void;
@@ -198,6 +209,8 @@ type DayProps = {
 };
 
 export function DaySheet(p: DayProps) {
+  const pendingTagText = (by: string) =>
+    !p.isAdmin && by === p.login ? 'ваше исправление ждёт подтверждения' : 'исправление ждёт проверки';
   const [y, m, d] = p.date.split('-');
   const title = `${WEEKDAYS_FULL[weekdayIndex(p.date)]}, ${d}.${m}.${y}`;
   const name = (id: string) => (p.showNames ? `${p.workersById.get(id)?.name ?? '—'} · ` : '');
@@ -221,7 +234,7 @@ export function DaySheet(p: DayProps) {
                 </small>
                 {e.pendingChange && (
                   <small className="pending-tag">
-                    {p.isAdmin ? 'исправление ждёт проверки' : 'ваше исправление ждёт подтверждения'}
+                    {pendingTagText(e.pendingChange.by)}
                   </small>
                 )}
               </span>
@@ -258,7 +271,7 @@ export function DaySheet(p: DayProps) {
               </small>
               {n.pendingChange && (
                 <small className="pending-tag">
-                  {p.isAdmin ? 'исправление ждёт проверки' : 'ваше исправление ждёт подтверждения'}
+                  {pendingTagText(n.pendingChange.by)}
                 </small>
               )}
             </span>
@@ -293,7 +306,9 @@ type PeriodProps = {
   total: DayTotals;
   team: boolean; // режим «Все работники»
   rates: Rates | null;
-  ownRate?: Rates | null; // работник: его ставка (только показать)
+  ownRate?: Rates | null; // ставка только для просмотра (работник — своя, менеджер — фактуры)
+  ownRateLabel?: string;
+  showSplitLabel?: boolean;
   onEditRate?: (which: 'hourly' | 'perKm') => void;
   onShift: (dir: 1 | -1) => void; // соседняя неделя / месяц
   earnings?: Earnings | null; // только администратор: «Мой заработок»
@@ -343,9 +358,9 @@ export function PeriodSheet(p: PeriodProps) {
   return (
     <Sheet title={title} onClose={p.onClose}>
       {/* У администратора суммы — по ставке фактуры; её можно изменить здесь. У работника блока нет. */}
-      {!p.rates && p.ownRate && (
+      {p.ownRate && !p.onEditRate && (
         <div className="pay-rates">
-          <span>Ваша ставка:</span>
+          <span>{p.ownRateLabel ?? 'Ваша ставка:'}</span>
           <span className="pay-rate pay-rate-static">€{formatNum(p.ownRate.hourly)}/ч</span>
           <span className="pay-rate pay-rate-static">€{formatNum(p.ownRate.perKm)}/км</span>
         </div>
@@ -371,7 +386,7 @@ export function PeriodSheet(p: PeriodProps) {
           </span>
         </div>
       )}
-      {p.team && p.rates && p.rows.length > 0 && (
+      {p.team && p.showSplitLabel && p.rows.length > 0 && (
         <div className="period-split-label">Каждый — по своей ставке</div>
       )}
       <div className="sheet-list">
@@ -427,9 +442,11 @@ export function ChangesSheet(p: ChangesProps) {
                   <div className="change-head">
                     <b>{who}</b>
                     <span>
-                      {WEEKDAYS_FULL[weekdayIndex(item.date)].slice(0, 2)} {d}.{m} · {title}
+                      {WEEKDAYS[weekdayIndex(item.date)]} {d}.{m} · {title}
                     </span>
-                    <small>исправлено {when(item.pendingChange!.at)}</small>
+                    <small>
+                      исправил {item.pendingChange!.by} · {when(item.pendingChange!.at)}
+                    </small>
                   </div>
                   {diff.length === 0 ? (
                     <div className="change-line">Изменений по сути нет</div>

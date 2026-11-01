@@ -74,10 +74,12 @@ export function CalendarFeed(props: Props) {
   const workerFilter = filterWorkerId(filter, state.selfWorkerId);
   const showNames = workerFilter === undefined;
   const isAdmin = props.session.role === 'admin';
+  // Менеджер видит всех и суммы по ставке фактуры, но ничего не настраивает.
+  const seesAll = props.session.role !== 'worker';
   // Суммы у администратора — по ставке фактуры; у работника — его заработок по ставкам в его записях.
   const rates = useMemo(
-    () => (isAdmin ? { hourly: state.overviewRates?.hourly ?? 0, perKm: state.overviewRates?.perKm ?? 0 } : null),
-    [isAdmin, state.overviewRates],
+    () => (seesAll ? { hourly: state.overviewRates?.hourly ?? 0, perKm: state.overviewRates?.perKm ?? 0 } : null),
+    [seesAll, state.overviewRates],
   );
   const today = ymd(new Date());
   const thisMonth = today.slice(0, 7);
@@ -303,7 +305,7 @@ export function CalendarFeed(props: Props) {
   return (
     <div className="feed">
       <header className="feed-header">
-        {isAdmin ? (
+        {seesAll ? (
           <button className="feed-switch" onClick={() => setSheet({ kind: 'switcher' })}>
             <span className="feed-switch-label">{filterLabel}</span>
             <Icon name="chevronDown" size={16} className="feed-switch-caret" />
@@ -332,7 +334,7 @@ export function CalendarFeed(props: Props) {
       {pending.length > 0 && (
         <button className="feed-banner pending-banner" onClick={() => setSheet({ kind: 'changes' })}>
           <span>
-            {pending.length === 1 ? 'Исправление работника ждёт' : `Исправлений работников: ${pending.length} — ждут`}{' '}
+            {pending.length === 1 ? 'Исправление ждёт' : `Исправлений: ${pending.length} — ждут`}{' '}
             проверки
           </span>
           <b>Проверить</b>
@@ -405,6 +407,7 @@ export function CalendarFeed(props: Props) {
           workers={state.workers}
           filter={filter}
           selfWorkerId={state.selfWorkerId}
+          canManage={isAdmin}
           onPick={(f) => (f.kind === 'me' && !state.selfWorkerId ? setSheet({ kind: 'self' }) : changeFilter(f))}
           onChangeSelf={() => setSheet({ kind: 'self' })}
           onAddWorker={() => leave(props.onAddWorker)}
@@ -478,6 +481,7 @@ export function CalendarFeed(props: Props) {
           showNames={showNames}
           rates={rates}
           isAdmin={isAdmin}
+          login={props.session.login}
           onEditEntry={(e) => leave(() => props.onEditEntry(e))}
           onEditNote={(n) => leave(() => props.onEditNote(n))}
           onAddEntry={() => startAdd(sheet.date, 'entry')}
@@ -499,7 +503,8 @@ export function CalendarFeed(props: Props) {
               onEditRate={isAdmin ? askRate : undefined}
               onShift={(dir) => setSheet({ kind: 'period', req: shiftRequest(sheet.req, dir) })}
               earnings={
-                rates
+                // «Мой заработок» — только администратор
+                isAdmin && rates
                   ? computeEarnings(
                       sheet.req.start,
                       sheet.req.end,
@@ -511,7 +516,9 @@ export function CalendarFeed(props: Props) {
                     )
                   : null
               }
-              ownRate={isAdmin ? null : ownRate(sheet.req)}
+              ownRate={isAdmin ? null : seesAll ? rates : ownRate(sheet.req)}
+              ownRateLabel={seesAll ? 'Ставка фактуры:' : 'Ваша ставка:'}
+              showSplitLabel={isAdmin}
               onOpenWorker={(id) =>
                 leave(() => {
                   memory.reopen = { kind: 'period', req: sheet.req };

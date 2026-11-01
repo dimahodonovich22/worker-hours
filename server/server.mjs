@@ -5,9 +5,13 @@
 //   admin  — видит и правит всё, ставка фактуры (overviewRates) только у него.
 //   worker — видит и правит только свои записи и заметки; ставки в записях ставит сервер,
 //            ставку фактуры и чужие данные не получает вовсе.
+//   manager — видит всех и все часы, но все ставки ему приходят как ставка фактуры
+//            (настоящих ставок работников сервер не отдаёт); ничего не удаляет,
+//            его исправления ждут подтверждения администратора.
 //
 // Запуск: node server/server.mjs            — сервер
 //         node server/server.mjs admin-link — новая ссылка для входа администратора
+//         node server/server.mjs manager-link <логин> — менеджер (создать или сбросить пароль): ссылка для входа
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -42,7 +46,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     login TEXT UNIQUE NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'worker')),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'worker', 'manager')),
     worker_id TEXT,
     pass TEXT,
     invite_hash TEXT,
@@ -55,6 +59,38 @@ db.exec(`
     expires INTEGER NOT NULL
   );
 `);
+
+// Старые базы: в таблице users разрешены только admin/worker — пересоздаём с ролью manager.
+{
+  const usersSql = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'").get()?.sql ?? '';
+  if (!usersSql.includes("'manager'")) {
+    db.exec('PRAGMA foreign_keys = OFF'); // иначе пересоздание users удалило бы сессии
+    db.exec('BEGIN');
+    try {
+      db.exec(`
+        CREATE TABLE users_new (
+          id TEXT PRIMARY KEY,
+          login TEXT UNIQUE NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('admin', 'worker', 'manager')),
+          worker_id TEXT,
+          pass TEXT,
+          invite_hash TEXT,
+          invite_expires INTEGER,
+          created INTEGER NOT NULL
+        );
+        INSERT INTO users_new (id, login, role, worker_id, pass, invite_hash, invite_expires, created)
+          SELECT id, login, role, worker_id, pass, invite_hash, invite_expires, created FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+      `);
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+    db.exec('PRAGMA foreign_keys = ON');
+  }
+}
 
 // Исправление работника не меняет запись сразу — оно лежит в pending, пока администратор не примет его.
 for (const t of ['entries', 'notes']) {
@@ -220,7 +256,33 @@ function workerDefaultRates(workerId) {
 
 /* ---------------- Данные для пользователя ---------------- */
 
+/** Менеджер видит всех по ставке фактуры: настоящие ставки работников заменяются на неё. */
+function invoiceRates() {
+  const r = kvGet('overviewRates') ?? {};
+  return { hourly: num(r.hourly) ?? 0, perKm: num(r.perKm) ?? 0 };
+}
+function maskEntry(e, r) {
+  const out = { ...e, hourly: r.hourly, perKm: r.perKm };
+  if (e.pendingChange) out.pendingChange = { ...e.pendingChange, data: { ...e.pendingChange.data, hourly: r.hourly, perKm: r.perKm } };
+  return out;
+}
+/** Ответ на изменение записи — для менеджера тоже без настоящих ставок. */
+function itemFor(user, table, id) {
+  const item = getItem(table, id);
+  return user.role === 'manager' && table === 'entries' && item ? maskEntry(item, invoiceRates()) : item;
+}
+
 function dataFor(user) {
+  if (user.role === 'manager') {
+    const r = invoiceRates();
+    return {
+      workers: parseRows(q('SELECT data FROM workers').all()).map((w) => ({ id: w.id, name: w.name, hourly: r.hourly, perKm: r.perKm })),
+      entries: itemRows(q('SELECT data, pending FROM entries ORDER BY date').all()).map((e) => maskEntry(e, r)),
+      notes: itemRows(q('SELECT data, pending FROM notes ORDER BY date').all()),
+      overviewRates: r,
+      selfWorkerId: user.worker_id ?? undefined,
+    };
+  }
   if (user.role === 'admin') {
     return {
       workers: parseRows(q('SELECT data FROM workers').all()),
@@ -360,7 +422,8 @@ async function api(req, res, url) {
     const id = parts[1];
     if (!isId(id)) fail(400, 'Неверный id');
     const existing = q(`SELECT worker_id, data FROM ${table} WHERE id = ?`).get(id);
-    if (existing && !admin && existing.worker_id !== user.worker_id) fail(403, 'Нет доступа');
+    const manager = user.role === 'manager';
+    if (existing && !admin && !manager && existing.worker_id !== user.worker_id) fail(403, 'Нет доступа');
 
     // Администратор принимает или отклоняет исправление работника.
     if (parts[2] === 'approve' || parts[2] === 'reject') {
@@ -395,11 +458,15 @@ async function api(req, res, url) {
       if (!isObj(item)) fail(400, 'Неверные данные');
       delete item.pendingChange; // это поле считает только сервер
       if (!admin) {
-        if (!user.worker_id) fail(403, 'Нет доступа');
-        item.workerId = user.worker_id; // работник пишет только себе
+        if (!manager) {
+          if (!user.worker_id) fail(403, 'Нет доступа');
+          item.workerId = user.worker_id; // работник пишет только себе
+        } else if (existing) {
+          item.workerId = existing.worker_id; // менеджер не переносит запись на другого работника
+        }
         if (table === 'entries') {
-          // Ставку в записи работник не задаёт: сохраняется прежняя или берётся его обычная.
-          const rates = existing ? JSON.parse(existing.data) : workerDefaultRates(user.worker_id);
+          // Ставку в записи задаёт только администратор: сохраняется прежняя или берётся обычная ставка работника.
+          const rates = existing ? JSON.parse(existing.data) : workerDefaultRates(item.workerId);
           item.hourly = rates.hourly;
           item.perKm = rates.perKm;
         }
@@ -407,7 +474,7 @@ async function api(req, res, url) {
       checkItem(item, id);
       if (!getWorker(item.workerId)) fail(400, 'Работник не найден');
 
-      // Работник исправляет уже внесённое — запись не меняется, исправление ждёт администратора.
+      // Работник или менеджер исправляет уже внесённое — запись не меняется, исправление ждёт администратора.
       if (!admin && existing) {
         const current = JSON.parse(existing.data);
         if (sameContent(current, item)) q(`UPDATE ${table} SET pending = NULL WHERE id = ?`).run(id);
@@ -417,7 +484,7 @@ async function api(req, res, url) {
             id,
           );
         }
-        return send(res, 200, getItem(table, id));
+        return send(res, 200, itemFor(user, table, id));
       }
 
       // Новая запись (в т.ч. работника) или правка администратора — сохраняется сразу.
@@ -428,7 +495,7 @@ async function api(req, res, url) {
         item.date,
         JSON.stringify(item),
       );
-      return send(res, 200, getItem(table, id));
+      return send(res, 200, itemFor(user, table, id));
     }
   }
 
@@ -584,6 +651,24 @@ const server = http.createServer(async (req, res) => {
 
 if (process.argv[2] === 'admin-link') {
   ensureAdmin({ forceLink: true });
+  process.exit(0);
+}
+if (process.argv[2] === 'manager-link') {
+  const login = String(process.argv[3] || '').trim().toLowerCase();
+  if (!/^[a-z0-9]{2,30}$/.test(login)) {
+    console.error('Логин: латиница и цифры, например denvick');
+    process.exit(1);
+  }
+  let u = q('SELECT * FROM users WHERE login = ?').get(login);
+  if (u && u.role !== 'manager') {
+    console.error(`Логин ${login} уже занят (${u.role})`);
+    process.exit(1);
+  }
+  if (!u) {
+    q("INSERT INTO users (id, login, role, created) VALUES (?, ?, 'manager', ?)").run(newId(), login, Date.now());
+    u = q('SELECT * FROM users WHERE login = ?').get(login);
+  }
+  console.log(`\n=== Ссылка для входа менеджера (логин ${login}, действует ${INVITE_DAYS} дней) ===\n${issueInvite(u.id)}\n`);
   process.exit(0);
 }
 

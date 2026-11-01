@@ -64,7 +64,7 @@ export type PeriodView = {
 // Кто вошёл: администратор видит всё, работник — только своё.
 export type Session = {
   login: string;
-  role: 'admin' | 'worker';
+  role: 'admin' | 'worker' | 'manager'; // manager — видит всех по ставке фактуры, ничего не удаляет
   workerId: string | null;
   name: string | null;
 };

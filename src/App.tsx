@@ -96,6 +96,8 @@ export function App() {
 
 function Workspace({ session, onLogout }: { session: Session; onLogout: () => void }) {
   const isAdmin = session.role === 'admin';
+  // Менеджер видит всех (ставки ему приходят как ставка фактуры), работник — только себя.
+  const seesAll = session.role !== 'worker';
   const [state, setState] = useState<AppState | null>(null);
   const [loadError, setLoadError] = useState('');
 
@@ -123,14 +125,14 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
         overviewRates: d.overviewRates,
         selfWorkerId: d.selfWorkerId,
         // Выбор «чьи часы показывать» хранится на телефоне; работник всегда видит только свои.
-        feedFilter: isAdmin ? loadFeedFilter() : { kind: 'me' },
+        feedFilter: seesAll ? (loadFeedFilter() ?? (d.selfWorkerId ? { kind: 'me' } : { kind: 'all' })) : { kind: 'me' },
       });
       setLoadError('');
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return onLogout();
       setLoadError(e instanceof ApiError ? e.message : 'Не удалось загрузить данные');
     }
-  }, [isAdmin, onLogout]);
+  }, [seesAll, onLogout]);
 
   useEffect(() => {
     reload();
@@ -259,9 +261,11 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
   /** Подсказка в форме, если по записи есть непроверенное исправление. */
   function pendingNotice(item?: Entry | Note): string | undefined {
     if (!item?.pendingChange) return undefined;
-    return isAdmin
-      ? 'Работник предложил исправление — оно ещё не применено. Проверьте его в «Изменения ждут проверки» на главном экране.'
-      : 'Ваше исправление отправлено и ждёт подтверждения. До этого в итогах остаются прежние данные.';
+    if (isAdmin)
+      return 'Предложено исправление — оно ещё не применено. Проверьте его в «Изменения ждут проверки» на главном экране.';
+    return item.pendingChange.by === session.login
+      ? 'Ваше исправление отправлено и ждёт подтверждения. До этого в итогах остаются прежние данные.'
+      : 'По этой записи есть исправление, которое ждёт подтверждения администратора.';
   }
 
   if (!state) {
