@@ -289,6 +289,10 @@ function dataFor(user) {
       entries: itemRows(q('SELECT data, pending FROM entries ORDER BY date').all()),
       notes: itemRows(q('SELECT data, pending FROM notes ORDER BY date').all()),
       overviewRates: kvGet('overviewRates'),
+      productPending: (() => {
+        const p = kvGet('productNotesPending');
+        return p ? { ...p, current: kvGet('productNotes')?.text ?? '' } : null;
+      })(),
       selfWorkerId: kvGet('selfWorkerId'),
     };
   }
@@ -558,17 +562,35 @@ async function api(req, res, url) {
   }
 
   // Страница «Продукт»: свободный текст (что и сколько продукта ушло на какой объект).
-  // Пишет администратор, менеджер только читает, работникам недоступна.
+  // Администратор пишет сразу; менеджер предлагает исправление — оно ждёт подтверждения
+  // администратора (productNotesPending). Работникам страница недоступна.
   if (parts[0] === 'product-notes') {
     if (user.role === 'worker') fail(403, 'Нет доступа');
-    if (method === 'GET') return send(res, 200, kvGet('productNotes') ?? { text: '', updatedAt: null });
-    if (method === 'PUT') {
+    const current = () => kvGet('productNotes') ?? { text: '', updatedAt: null };
+    const view = () => ({ ...current(), pending: kvGet('productNotesPending') ?? null });
+
+    if ((parts[1] === 'approve' || parts[1] === 'reject') && method === 'POST') {
       needAdmin();
+      const p = kvGet('productNotesPending');
+      if (!p) fail(404, 'Исправление не найдено — возможно, уже проверено');
+      if (parts[1] === 'approve') kvSet('productNotes', { text: p.text, updatedAt: Date.now() });
+      kvSet('productNotesPending', null);
+      return send(res, 200, view());
+    }
+    if (parts.length > 1) fail(404, 'Не найдено');
+    if (method === 'GET') return send(res, 200, view());
+    if (method === 'PUT') {
+      if (user.role !== 'admin' && user.role !== 'manager') fail(403, 'Нет доступа');
       const { text } = await readJson(req, 600000);
       if (typeof text !== 'string' || text.length > 500000) fail(400, 'Слишком длинный текст');
-      const saved = { text, updatedAt: Date.now() };
-      kvSet('productNotes', saved);
-      return send(res, 200, saved);
+      if (user.role === 'admin') {
+        kvSet('productNotes', { text, updatedAt: Date.now() });
+      } else if (text === current().text) {
+        kvSet('productNotesPending', null); // вернул как было — исправления нет
+      } else {
+        kvSet('productNotesPending', { text, at: Date.now(), by: user.login });
+      }
+      return send(res, 200, view());
     }
   }
 

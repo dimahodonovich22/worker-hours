@@ -60,3 +60,36 @@ export function withProposal<T extends Entry | Note>(item: T): T {
   if (!item.pendingChange) return item;
   return { ...(item.pendingChange.data as T), id: item.id, workerId: item.workerId };
 }
+
+/* ---------- Страница «Продукт»: какие строки убраны и какие добавлены ---------- */
+
+export type LineChange = { type: 'add' | 'del'; text: string };
+
+/** Сравнение по строкам (наибольшая общая подпоследовательность); пустые строки не показываем. */
+export function lineChanges(before: string, after: string): LineChange[] {
+  const a = before.split('\n');
+  const b = after.split('\n');
+  const out: LineChange[] = [];
+  if (a.length * b.length > 4_000_000) {
+    // очень длинный текст — просто «было» и «стало»
+    a.forEach((t) => out.push({ type: 'del', text: t }));
+    b.forEach((t) => out.push({ type: 'add', text: t }));
+  } else {
+    const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = a.length - 1; i >= 0; i--)
+      for (let j = b.length - 1; j >= 0; j--)
+        dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    let i = 0;
+    let j = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) {
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ type: 'del', text: a[i++] });
+      else out.push({ type: 'add', text: b[j++] });
+    }
+    while (i < a.length) out.push({ type: 'del', text: a[i++] });
+    while (j < b.length) out.push({ type: 'add', text: b[j++] });
+  }
+  return out.filter((c) => c.text.trim() !== '');
+}

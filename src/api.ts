@@ -34,6 +34,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 const enc = encodeURIComponent;
 
+/** Страница «Продукт»: действующий текст и непроверенное исправление менеджера (если есть). */
+export type ProductNotesView = {
+  text: string;
+  updatedAt: number | null;
+  pending: { text: string; at: number; by: string } | null;
+};
+
 export const api = {
   session: () => request<{ user: Session }>('GET', 'session'),
   login: (login: string, password: string) => request<{ user: Session }>('POST', 'login', { login, password }),
@@ -57,8 +64,9 @@ export const api = {
   importAll: (s: AppState) =>
     request<{ workers: number; entries: number; notes: number }>('POST', 'import', s),
 
-  productNotes: () => request<{ text: string; updatedAt: number | null }>('GET', 'product-notes'),
-  saveProductNotes: (text: string) => request<{ text: string; updatedAt: number }>('PUT', 'product-notes', { text }),
+  productNotes: () => request<ProductNotesView>('GET', 'product-notes'),
+  saveProductNotes: (text: string) => request<ProductNotesView>('PUT', 'product-notes', { text }),
+  reviewProduct: (action: 'approve' | 'reject') => request<ProductNotesView>('POST', `product-notes/${action}`),
 
   account: (workerId: string) =>
     request<{ status: 'none' | 'invited' | 'expired' | 'active'; login: string | null }>(

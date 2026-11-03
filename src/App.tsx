@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppState, Entry, FeedFilter, Note, PeriodView, Session, Worker } from './types';
 import { loadFeedFilter, saveFeedFilter, uid } from './storage';
 import { api, ApiError } from './api';
@@ -102,6 +102,8 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
   const seesAll = session.role !== 'worker';
   const [state, setState] = useState<AppState | null>(null);
   const [loadError, setLoadError] = useState('');
+  // Счётчик правок на телефоне: ответ сервера, запрошенный до правки, уже устарел и не должен её затереть.
+  const edits = useRef(0);
 
   // Стек экранов: «Назад» и «Сохранить» возвращают туда, откуда пришли (в ленту или к работнику).
   const [stack, setStack] = useState<Route[]>([{ name: 'feed' }]);
@@ -119,12 +121,19 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
 
   const reload = useCallback(async () => {
     try {
+      const seen = edits.current;
       const d = await api.data();
+      if (seen !== edits.current) {
+        // Пока данные шли, здесь что-то изменили — загрузим ещё раз, когда изменение дойдёт до сервера.
+        window.setTimeout(reload, 700);
+        return;
+      }
       setState({
         workers: d.workers ?? [],
         entries: d.entries ?? [],
         notes: d.notes ?? [],
         overviewRates: d.overviewRates,
+        productPending: d.productPending ?? null,
         selfWorkerId: d.selfWorkerId,
         // Выбор «чьи часы показывать» хранится на телефоне; работник всегда видит только свои.
         feedFilter: seesAll ? (loadFeedFilter() ?? (d.selfWorkerId ? { kind: 'me' } : { kind: 'all' })) : { kind: 'me' },
@@ -158,7 +167,10 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
     });
   }
 
-  const update = (fn: (s: AppState) => AppState) => setState((s) => (s ? fn(s) : s));
+  const update = (fn: (s: AppState) => AppState) => {
+    edits.current++;
+    setState((s) => (s ? fn(s) : s));
+  };
 
   function upsertWorker(w: Worker) {
     update((s) => {
@@ -216,6 +228,12 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
     persist(api.review(kind, id, action), (item) =>
       kind === 'entries' ? replaceEntry(item as Entry) : replaceNote(item as Note),
     );
+  }
+
+  /** Администратор принимает или отклоняет исправление страницы «Продукт». */
+  function reviewProduct(action: 'approve' | 'reject') {
+    update((s) => ({ ...s, productPending: null }));
+    persist(api.reviewProduct(action));
   }
 
   function deleteNote(id: string) {
@@ -301,6 +319,7 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
         onImport={importState}
         onSetRates={setOverviewRates}
         onReview={reviewChange}
+        onReviewProduct={reviewProduct}
       />
     );
   }
@@ -308,7 +327,16 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
   // Страница «Продукт»: администратор пишет, менеджер читает, работникам недоступна.
   if (route.name === 'product') {
     if (!seesAll) return <BackHome onHome={goHome} />;
-    return <ProductNotes canEdit={isAdmin} onBack={pop} />;
+    return (
+      <ProductNotes
+        role={isAdmin ? 'admin' : 'manager'}
+        login={session.login}
+        onBack={() => {
+          reload(); // у администратора обновится плашка «Изменения ждут проверки»
+          pop();
+        }}
+      />
+    );
   }
 
   if (route.name === 'summary') {

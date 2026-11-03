@@ -21,7 +21,7 @@ import {
   PickWorkerSheet,
   SwitcherSheet,
 } from '../components/feed/FeedSheets';
-import { pendingItems } from '../changes';
+import { lineChanges, pendingItems } from '../changes';
 import { downloadBackup, readBackup } from '../backup';
 import { Icon } from '../components/Icon';
 import '../feed.css';
@@ -44,6 +44,7 @@ type Props = {
   onImport: (s: AppState) => void;
   onSetRates: (r: { hourly: number; perKm: number }) => void;
   onReview: (kind: 'entries' | 'notes', id: string, action: 'approve' | 'reject') => void;
+  onReviewProduct: (action: 'approve' | 'reject') => void;
 };
 
 type Sheet =
@@ -118,6 +119,12 @@ export function CalendarFeed(props: Props) {
     () => (isAdmin ? pendingItems(state.entries, state.notes) : []),
     [isAdmin, state.entries, state.notes],
   );
+  // Исправление страницы «Продукт» от менеджера: какие строки убраны и добавлены.
+  const productChange = useMemo(() => {
+    const pp = isAdmin ? state.productPending : null;
+    return pp ? { by: pp.by, at: pp.at, lines: lineChanges(pp.current, pp.text) } : null;
+  }, [isAdmin, state.productPending]);
+  const pendingCount = pending.length + (productChange ? 1 : 0);
   const notesByDate = useMemo(() => groupByDate(visibleNotes), [visibleNotes]);
 
   /* ---------- Какие месяцы показывать ---------- */
@@ -337,10 +344,10 @@ export function CalendarFeed(props: Props) {
         </button>
       </header>
 
-      {pending.length > 0 && (
+      {pendingCount > 0 && (
         <button className="feed-banner pending-banner" onClick={() => setSheet({ kind: 'changes' })}>
           <span>
-            {pending.length === 1 ? 'Исправление ждёт' : `Исправлений: ${pending.length} — ждут`}{' '}
+            {pendingCount === 1 ? 'Исправление ждёт' : `Исправлений: ${pendingCount} — ждут`}{' '}
             проверки
           </span>
           <b>Проверить</b>
@@ -472,6 +479,8 @@ export function CalendarFeed(props: Props) {
       {sheet?.kind === 'changes' && (
         <ChangesSheet
           items={pending}
+          product={productChange}
+          onReviewProduct={props.onReviewProduct}
           workersById={workersById}
           onReview={props.onReview}
           onClose={() => setSheet(null)}

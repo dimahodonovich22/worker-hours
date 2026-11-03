@@ -1138,7 +1138,29 @@ button.danger {
   outline: none;
   box-shadow: var(--rim), 0 0 0 3px rgba(0, 104, 224, 0.2);
 }
-.product-read {
-  white-space: pre-wrap;
+
+/* Исправление страницы «Продукт»: убранные и добавленные строки */
+.text-change {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
+}
+.text-change > span:first-child {
+  flex-shrink: 0;
+  width: 12px;
+  font-weight: 800;
+}
+.text-change.del {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.text-change.del > span:first-child {
+  color: var(--owed);
+  text-decoration: none;
+}
+.text-change.add {
+  color: #a35200;
+  font-weight: 650;
 }

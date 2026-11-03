@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '../api';
+import { api, ApiError, type ProductNotesView } from '../api';
 
 type Props = {
-  canEdit: boolean; // пишет только администратор, менеджер читает
+  // администратор пишет сразу; менеджер правит, но его правки ждут подтверждения администратора
+  role: 'admin' | 'manager';
+  login: string;
   onBack: () => void;
 };
 
-type Status = 'loading' | 'saved' | 'dirty' | 'saving' | 'error';
+type Status = 'loading' | 'saved' | 'proposed' | 'dirty' | 'saving' | 'error';
 
 const when = (at: number | null) =>
   at
@@ -14,38 +16,48 @@ const when = (at: number | null) =>
     : null;
 
 /** Страница «Продукт» — как заметка: что и сколько продукта ушло на какой объект. */
-export function ProductNotes({ canEdit, onBack }: Props) {
+export function ProductNotes({ role, login, onBack }: Props) {
+  const isAdmin = role === 'admin';
   const [text, setText] = useState('');
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [status, setStatus] = useState<Status>('loading');
   const [loadError, setLoadError] = useState('');
-  const pending = useRef<string | null>(null); // текст, ещё не отправленный на сервер
+  const [othersPending, setOthersPending] = useState<ProductNotesView['pending']>(null); // для администратора
+  const unsent = useRef<string | null>(null); // текст, ещё не отправленный на сервер
   const timer = useRef<number | undefined>(undefined);
   const area = useRef<HTMLTextAreaElement>(null);
+
+  // Состояние после ответа сервера: у менеджера — ждёт ли его исправление проверки.
+  function applyView(r: ProductNotesView) {
+    setUpdatedAt(r.updatedAt);
+    if (isAdmin) setOthersPending(r.pending);
+    return !isAdmin && r.pending?.by === login ? 'proposed' : 'saved';
+  }
 
   useEffect(() => {
     api
       .productNotes()
       .then((r) => {
-        setText(r.text);
-        setUpdatedAt(r.updatedAt);
-        setStatus('saved');
+        const st = applyView(r);
+        // Менеджер продолжает со своим непроверенным исправлением, а не с «чистым» текстом.
+        setText(st === 'proposed' && r.pending ? r.pending.text : r.text);
+        setStatus(st);
       })
       .catch((e) => setLoadError(e instanceof ApiError ? e.message : 'Не удалось загрузить'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function flush() {
     window.clearTimeout(timer.current);
-    const t = pending.current;
+    const t = unsent.current;
     if (t === null) return;
-    pending.current = null;
+    unsent.current = null;
     setStatus('saving');
     try {
-      const r = await api.saveProductNotes(t);
-      setUpdatedAt(r.updatedAt);
-      setStatus(pending.current === null ? 'saved' : 'dirty');
+      const st = applyView(await api.saveProductNotes(t));
+      setStatus(unsent.current === null ? st : 'dirty');
     } catch {
-      pending.current = pending.current ?? t; // не потерять текст — сохраним при следующей правке
+      unsent.current = unsent.current ?? t; // не потерять текст — сохраним при следующей правке
       setStatus('error');
     }
   }
@@ -53,7 +65,7 @@ export function ProductNotes({ canEdit, onBack }: Props) {
   // Сохранение само: через секунду после того, как перестали печатать.
   function onChange(v: string) {
     setText(v);
-    pending.current = v;
+    unsent.current = v;
     setStatus('dirty');
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(flush, 1000);
@@ -84,12 +96,16 @@ export function ProductNotes({ canEdit, onBack }: Props) {
     status === 'loading'
       ? 'Загрузка…'
       : status === 'saving' || status === 'dirty'
-        ? 'Сохраняю…'
+        ? isAdmin
+          ? 'Сохраняю…'
+          : 'Отправляю…'
         : status === 'error'
           ? 'Не сохранилось — проверьте интернет'
-          : updatedAt
-            ? `Сохранено ${when(updatedAt)}`
-            : '';
+          : status === 'proposed'
+            ? 'Отправлено — ждёт подтверждения администратора'
+            : updatedAt
+              ? `${isAdmin ? 'Сохранено' : 'Обновлено'} ${when(updatedAt)}`
+              : '';
 
   return (
     <div className="screen product-screen">
@@ -105,24 +121,25 @@ export function ProductNotes({ canEdit, onBack }: Props) {
         <div className="form-hint pending-hint">{loadError}</div>
       ) : (
         <>
-          <div className={`product-status${status === 'error' ? ' error' : ''}`}>
-            {canEdit ? statusText : updatedAt ? `Обновлено ${when(updatedAt)}` : ''}
-          </div>
-          {canEdit ? (
-            <textarea
-              ref={area}
-              className="product-text"
-              value={text}
-              disabled={status === 'loading'}
-              onChange={(e) => onChange(e.target.value)}
-              onBlur={flush}
-              placeholder={'Например:\n03.11 Гент — 5 л гидрофобизатора\n04.11 Антверпен — 2 мешка смеси'}
-            />
-          ) : (
-            <div className="product-text product-read">
-              {status === 'loading' ? '' : text || 'Пока пусто.'}
+          {isAdmin && othersPending && (
+            <div className="form-hint pending-hint">
+              {othersPending.by} предложил исправление этой страницы — посмотрите его на главном экране, кнопка
+              «Проверить».
             </div>
           )}
+          {!isAdmin && status === 'saved' && (
+            <div className="form-hint">Ваши правки увидят остальные после подтверждения администратора.</div>
+          )}
+          <div className={`product-status${status === 'error' ? ' error' : ''}`}>{statusText}</div>
+          <textarea
+            ref={area}
+            className="product-text"
+            value={text}
+            disabled={status === 'loading'}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={flush}
+            placeholder={'Например:\n03.11 Гент — 5 л гидрофобизатора\n04.11 Антверпен — 2 мешка смеси'}
+          />
         </>
       )}
     </div>

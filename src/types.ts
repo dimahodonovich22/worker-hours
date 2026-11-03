@@ -75,11 +75,15 @@ export type FeedFilter =
   | { kind: 'all' }
   | { kind: 'worker'; workerId: string };
 
+/** Исправление страницы «Продукт» от менеджера (видит только администратор). */
+export type ProductPending = { text: string; at: number; by: string; current: string };
+
 export type AppState = {
   workers: Worker[];
   entries: Entry[];
   notes: Note[];
   // Ставки для общей плашки на главном экране (независимы от ставок в записях).
+  productPending?: ProductPending | null;
   overviewRates?: {
     hourly: number;
     perKm: number;

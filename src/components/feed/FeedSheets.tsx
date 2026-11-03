@@ -12,7 +12,7 @@ import {
   type WorkerEarning,
 } from '../../feedModel';
 import type { PeriodRequest } from './MonthSection';
-import type { PendingItem } from '../../changes';
+import type { LineChange, PendingItem } from '../../changes';
 
 const WEEKDAYS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
@@ -404,6 +404,8 @@ export function PeriodSheet(p: PeriodProps) {
 
 type ChangesProps = {
   items: PendingItem[];
+  product?: { by: string; at: number; lines: LineChange[] } | null; // исправление страницы «Продукт»
+  onReviewProduct: (action: 'approve' | 'reject') => void;
   workersById: Map<string, Worker>;
   onReview: (kind: 'entries' | 'notes', id: string, action: 'approve' | 'reject') => void;
   onClose: () => void;
@@ -414,12 +416,40 @@ export function ChangesSheet(p: ChangesProps) {
     new Date(at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   return (
     <Sheet title="Изменения ждут проверки" onClose={p.onClose}>
-      {p.items.length === 0 ? (
+      {p.items.length === 0 && !p.product ? (
         <div className="feed-sheet-hint">Всё проверено — новых исправлений нет.</div>
       ) : (
         <>
           <div className="feed-sheet-hint">Пока вы не примете исправление, в итогах остаются прежние данные.</div>
           <div className="sheet-list">
+            {p.product && (
+              <div className="change-card">
+                <div className="change-head">
+                  <b>Страница «Продукт»</b>
+                  <small>
+                    исправил {p.product.by} · {when(p.product.at)}
+                  </small>
+                </div>
+                {p.product.lines.length === 0 ? (
+                  <div className="change-line">Изменения только в пустых строках</div>
+                ) : (
+                  p.product.lines.map((l, i) => (
+                    <div className={`text-change ${l.type}`} key={i}>
+                      <span>{l.type === 'add' ? '+' : '−'}</span>
+                      <span>{l.text}</span>
+                    </div>
+                  ))
+                )}
+                <div className="multi-row">
+                  <button className="ghost" onClick={() => p.onReviewProduct('reject')}>
+                    Отклонить
+                  </button>
+                  <button className="primary" onClick={() => p.onReviewProduct('approve')}>
+                    Принять
+                  </button>
+                </div>
+              </div>
+            )}
             {p.items.map(({ kind, item, diff }) => {
               const who = p.workersById.get(item.workerId)?.name ?? '—';
               const title =
