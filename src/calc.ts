@@ -60,8 +60,12 @@ export function noteEffectiveAmount(n: Note): number {
 }
 
 /** Расход по работе: «мне должны» с галочкой — входит в сумму к выплате. */
+/**
+ * «Мне должны» прибавляется к сумме к выплате — в том числе старые заметки, внесённые
+ * до появления галочки. Не считается, только если галочку сняли явно (addToPay === false).
+ */
 export function isPayExpense(n: Note): boolean {
-  return n.direction === 'plus' && !!n.addToPay;
+  return n.direction === 'plus' && n.addToPay !== false;
 }
 
 /** Сумма расходов по работе за период (по одному работнику или по всем). */

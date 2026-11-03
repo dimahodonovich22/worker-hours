@@ -49,7 +49,7 @@ export type Note = {
   cashDeductPercent?: number;
   // Для «мне должны»: расход по работе (парковка, покупки) — прибавляется
   // к сумме к выплате за работу, а не учитывается отдельно в заметках.
-  addToPay?: boolean;
+  addToPay?: boolean; // не задано — считается в сумме; false — галочку сняли
   pendingChange?: PendingChange<Note>;
 };
 

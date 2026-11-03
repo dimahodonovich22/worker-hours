@@ -28,7 +28,7 @@ export function NoteForm({ worker, existing, notice, initialDate, onCancel, onSa
     existing?.cashDeductPercent ? String(existing.cashDeductPercent) : '',
   );
   // Для новых заметок «мне должны» по умолчанию считаем расходом по работе.
-  const [addToPay, setAddToPay] = useState<boolean>(existing ? !!existing.addToPay : true);
+  const [addToPay, setAddToPay] = useState<boolean>(existing ? existing.addToPay !== false : true);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -48,7 +48,8 @@ export function NoteForm({ worker, existing, notice, initialDate, onCancel, onSa
       photos: photos.length ? photos : undefined,
       cash: isPlus && cash ? true : undefined,
       cashDeductPercent: isPlus && cash && pct > 0 ? pct : undefined,
-      addToPay: isPlus && addToPay ? true : undefined,
+      // Снятую галочку храним явно (false) — иначе заметка снова считалась бы в сумме.
+      addToPay: isPlus ? addToPay : undefined,
     });
   }
 

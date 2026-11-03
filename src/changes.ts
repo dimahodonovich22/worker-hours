@@ -36,7 +36,7 @@ export function noteDiff(cur: Note, next: Note): DiffLine[] {
     ['Тип', DIRECTION[cur.direction], DIRECTION[next.direction]],
     ['Сумма', money(cur.amount), money(next.amount)],
     ['Описание', cur.description, next.description],
-    ['Расход по работе', yesNo(cur.addToPay), yesNo(next.addToPay)],
+    ['В сумме к выплате', yesNo(cur.addToPay !== false), yesNo(next.addToPay !== false)],
     ['Кэш', yesNo(cur.cash), yesNo(next.cash)],
     ['Вычет с кэша', `${formatNum(cur.cashDeductPercent ?? 0)}%`, `${formatNum(next.cashDeductPercent ?? 0)}%`],
     ['Фото', String(cur.photos?.length ?? 0), String(next.photos?.length ?? 0)],
