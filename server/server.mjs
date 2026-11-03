@@ -557,6 +557,21 @@ async function api(req, res, url) {
     }
   }
 
+  // Страница «Продукт»: свободный текст (что и сколько продукта ушло на какой объект).
+  // Пишет администратор, менеджер только читает, работникам недоступна.
+  if (parts[0] === 'product-notes') {
+    if (user.role === 'worker') fail(403, 'Нет доступа');
+    if (method === 'GET') return send(res, 200, kvGet('productNotes') ?? { text: '', updatedAt: null });
+    if (method === 'PUT') {
+      needAdmin();
+      const { text } = await readJson(req, 600000);
+      if (typeof text !== 'string' || text.length > 500000) fail(400, 'Слишком длинный текст');
+      const saved = { text, updatedAt: Date.now() };
+      kvSet('productNotes', saved);
+      return send(res, 200, saved);
+    }
+  }
+
   if (parts[0] === 'settings' && method === 'PUT') {
     needAdmin();
     const s = await readJson(req, 10000);

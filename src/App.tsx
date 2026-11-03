@@ -11,12 +11,14 @@ import { WorkerForm } from './screens/WorkerForm';
 import { ReportView } from './screens/ReportView';
 import { NoteForm } from './screens/NoteForm';
 import { InviteScreen, LoginScreen } from './screens/AuthScreens';
+import { ProductNotes } from './screens/ProductNotes';
 import { withProposal } from './changes';
 import type { PeriodRequest } from './components/feed/MonthSection';
 
 type Route =
   | { name: 'feed' }
   | { name: 'summary' }
+  | { name: 'product' }
   | { name: 'worker'; workerId: string }
   | { name: 'entry'; workerId: string; entryId?: string; date?: string }
   | { name: 'workerForm'; workerId?: string }
@@ -295,11 +297,18 @@ function Workspace({ session, onLogout }: { session: Session; onLogout: () => vo
         onAddWorker={() => push({ name: 'workerForm' })}
         onEditWorker={(id) => push({ name: 'workerForm', workerId: id })}
         onOpenSummary={() => push({ name: 'summary' })}
+        onOpenProduct={() => push({ name: 'product' })}
         onImport={importState}
         onSetRates={setOverviewRates}
         onReview={reviewChange}
       />
     );
+  }
+
+  // Страница «Продукт»: администратор пишет, менеджер читает, работникам недоступна.
+  if (route.name === 'product') {
+    if (!seesAll) return <BackHome onHome={goHome} />;
+    return <ProductNotes canEdit={isAdmin} onBack={pop} />;
   }
 
   if (route.name === 'summary') {

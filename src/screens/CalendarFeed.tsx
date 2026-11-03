@@ -40,6 +40,7 @@ type Props = {
   onAddWorker: () => void;
   onEditWorker: (workerId: string) => void;
   onOpenSummary: () => void;
+  onOpenProduct: () => void;
   onImport: (s: AppState) => void;
   onSetRates: (r: { hourly: number; perKm: number }) => void;
   onReview: (kind: 'entries' | 'notes', id: string, action: 'approve' | 'reject') => void;
@@ -315,6 +316,11 @@ export function CalendarFeed(props: Props) {
           <div className="feed-switch feed-switch-static">
             <span className="feed-switch-label">{props.session.name ?? 'Мои часы'}</span>
           </div>
+        )}
+        {seesAll && (
+          <button className="feed-icon-btn" onClick={() => leave(props.onOpenProduct)} aria-label="Продукт по объектам">
+            <Icon name="package" />
+          </button>
         )}
         <label className="feed-icon-btn" aria-label="Перейти к дате">
           <Icon name="calendar" />

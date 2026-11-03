@@ -57,6 +57,9 @@ export const api = {
   importAll: (s: AppState) =>
     request<{ workers: number; entries: number; notes: number }>('POST', 'import', s),
 
+  productNotes: () => request<{ text: string; updatedAt: number | null }>('GET', 'product-notes'),
+  saveProductNotes: (text: string) => request<{ text: string; updatedAt: number }>('PUT', 'product-notes', { text }),
+
   account: (workerId: string) =>
     request<{ status: 'none' | 'invited' | 'expired' | 'active'; login: string | null }>(
       'GET',

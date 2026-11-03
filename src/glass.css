@@ -1104,3 +1104,41 @@ button.danger {
   color: var(--muted) !important;
   font-weight: 500;
 }
+
+/* ---------- Страница «Продукт» (как заметка) ---------- */
+
+.product-status {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 2px 0 8px;
+  min-height: 22px;
+}
+.product-status.error {
+  color: var(--owed);
+  font-weight: 600;
+}
+.product-text {
+  display: block;
+  width: 100%;
+  min-height: 60vh;
+  border: none;
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--rim);
+  padding: 16px;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text);
+  resize: none;
+  overflow: hidden;
+}
+.product-text:focus {
+  outline: none;
+  box-shadow: var(--rim), 0 0 0 3px rgba(0, 104, 224, 0.2);
+}
+.product-read {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
